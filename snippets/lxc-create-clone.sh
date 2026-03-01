@@ -77,7 +77,7 @@ pct set $CLONE_CTX_ID --net0 "name=eth0,bridge=vmbr0,hwaddr=$CLONE_MAC,ip=dhcp,t
 pct start $CLONE_CTX_ID
 # Wait for network connectivity
 echo "Waiting for network connectivity..."
-for i in {1..30}; do pct exec "$CLONE_CTX_ID" -- ping -c 1 -W 1 8.8.8.8 >/dev/null 2>&1 && break || sleep 1; done
+pct exec "$CLONE_CTX_ID" -- bash -c 'for i in {1..30}; do ping -c 1 -W 1 8.8.8.8 >/dev/null 2>&1 && exit 0 || sleep 1; done; exit 1'
 
 #Display the Clone details to the user
 CLONE_IP=$(pct exec $CLONE_CTX_ID -- ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')

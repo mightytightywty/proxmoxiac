@@ -235,8 +235,8 @@ rm -f /var/lib/vz/template/cache/$CT_TEMPLATE  # Delete the template, now that w
 pct start $CTX_ID                              # Start the container
 
 # Wait for network connectivity
-echo "Waiting for network connectivity..."
-for i in {1..30}; do pct exec "$CTX_ID" -- ping -c 1 -W 1 8.8.8.8 >/dev/null 2>&1 && break || sleep 1; done
+echo -n "Waiting for network connectivity..."
+pct exec "$CTX_ID" -- bash -c 'for i in {1..30}; do ping -c 1 -W 1 8.8.8.8 >/dev/null 2>&1 && exit 0 || sleep 1; done; exit 1'
 
 # Detect Alpine Linux
 if pct exec $CTX_ID -- [ -f /etc/alpine-release ]; then

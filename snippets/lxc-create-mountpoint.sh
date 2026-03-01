@@ -58,10 +58,11 @@ if [[ ! "$HOST_PATH" =~ ^/ ]]; then
     zpool list "$ZPOOL_NAME" >/dev/null 2>&1 || { echo "Error: ZFS zpool '$ZPOOL_NAME' not found."; exit 1; }
 
     # Ensure the dataset exists else create it
-    zfs list "$ZPOOL_NAME" >/dev/null 2>&1 || { echo "Creating ZFS dataset $HOST_PATH..."; zfs create -p "$HOST_PATH" || { echo "Error: Failed to create ZFS dataset."; exit 1; } }
+    zfs list "$HOST_PATH" >/dev/null 2>&1 || { echo "Creating ZFS dataset $HOST_PATH..."; zfs create -p "$HOST_PATH" || { echo "Error: Failed to create ZFS dataset."; exit 1; } }
 
-    # Resolve the actual mountpoint on the host
+    # Ensure the mountpoint on the host is valid
     HOST_PATH=$(zfs get -H -o value mountpoint "$HOST_PATH")
+    [ -z "$HOST_PATH" ] && echo "Error: Could not determine mountpoint for ZFS dataset." && exit 1
     [[ "$HOST_PATH" == "legacy" || "$HOST_PATH" == "none" ]] && echo "Error: ZFS dataset $HOST_PATH does not have a valid mountpoint." && exit 1
 
     BACKUP=${BACKUP:-1} # Default Backup to 1

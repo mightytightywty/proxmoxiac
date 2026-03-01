@@ -121,11 +121,12 @@ if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     if [ -n "$GITHUB_USERNAME" ]; then
         while true; do
             echo "Checking for public SSH keys on GitHub for user: $GITHUB_USERNAME"
-            GITHUB_KEYS=$(curl -fs "https://github.com/${GITHUB_USERNAME}.keys" || true)
+            GITHUB_KEYS=$(curl -fs "https://github.com/$GITHUB_USERNAME.keys" || true)
             if [ -n "$GITHUB_KEYS" ] && [[ "$GITHUB_KEYS" == ssh-* ]]; then
                 while IFS= read -r key; do
                     [ -n "$key" ] && add_line_if_missing "/root/.ssh/authorized_keys" "$key"
                 done <<< "$GITHUB_KEYS"
+                break
             else
                 echo "No public keys found on GitHub for $GITHUB_USERNAME or user does not exist."
                 echo "If you don't already have one, generate a new SSH keypair (and save it) with Bitwarden Desktop Client or your software of choice."

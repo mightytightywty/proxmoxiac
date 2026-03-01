@@ -34,7 +34,7 @@ add_line_if_missing() {
 # If you don't, it will delete all crontabs that match the CRON_JOB exactly
 # Usage: add_to_crontab "$CRON_JOB" ["$SEARCH_STRING"]
 add_to_crontab() {
-    echo "$1" | grep -qE '^(@(reboot|yearly|annually|monthly|weekly|daily|midnight|hourly)|([0-9\*\/\-,]+ +){4}[0-9\*\/\-,]+) ' || { echo "Error: Invalid cron schedule format. Please try again."; exit 1; }
+    echo "$1" | grep -qE '^(@(reboot|yearly|annually|monthly|weekly|daily|midnight|hourly)|([0-9*/,-]+ +){4}[0-9*/,-]+) ' || { echo "Error: Invalid cron schedule format. Please try again."; exit 1; }
     (crontab -l 2>/dev/null | grep -Fv "${2:-$1}" || true; echo "$1") | crontab -
 }
 

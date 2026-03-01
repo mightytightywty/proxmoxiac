@@ -88,7 +88,7 @@ if ! git -C "/root/infrastructure" rev-parse --is-inside-work-tree >/dev/null 2>
 else
     echo "Found existing Infrastructure-As-Code repository at '/root/infrastructure'. Checking for updates via git pull..."
     # Git pull the latest infrastructure-as-code from repository
-    git -C "/root/infrastructure" pull origin main --autostash && echo "Git pull successful." || { echo "ERROR: Could not pull latest Infrastructure-As-Code from Git."; exit 1; }
+    git -C "/root/infrastructure" pull origin main --rebase --autostash && echo "Git pull successful." || { echo "ERROR: Could not pull latest Infrastructure-As-Code from Git."; exit 1; }
 fi
 
 # Setup Bitwarden Secrets Manager CLI via official install method - installs to /root/.local/bin/bws

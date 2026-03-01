@@ -52,7 +52,7 @@ case "$phase" in
         echo "Starting docker deployment sequence."
         
         # Git pull the latest infrastructure-as-code from repository
-        git -C "/root/infrastructure" pull origin main --autostash || { echo "ABORTING: Could not pull latest infrastructure-as-code from Git."; exit 1; }
+        git -C "/root/infrastructure" pull origin main --rebase --autostash || { echo "ABORTING: Could not pull latest infrastructure-as-code from Git."; exit 1; }
         
         # Fetch Environment Variables that start with "VMID_", exit if failed
         ENV_EXPORTS=$(get_secrets "${vmid}_") || { echo "ABORTING: Could not retrieve secrets from Bitwarden Secrets Manager."; exit 1; }

@@ -38,7 +38,6 @@ apt update >> /dev/null 2>&1 & apt install -y hdparm smartmontools
 # Build the Options String
 HD_IDLE_OPTS="-i 0"
 while read -r DISK SIZE; do
-    smartctl -i "/dev/$DISK" 2>/dev/null | grep -qi "rpm" && HD_IDLE_OPTS="$HD_IDLE_OPTS -a $DISK -i $HDD_IDLE_SECONDS"
     smartctl -i "/dev/$DISK" 2>/dev/null | grep -qi "rpm" && HD_IDLE_OPTS="$HD_IDLE_OPTS -a $DISK -i $HDD_IDLE_SECONDS" || true
 done < <(lsblk -ndo NAME,SIZE,TYPE | awk '$3=="disk"{print $1, $2}')
 

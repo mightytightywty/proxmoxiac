@@ -390,7 +390,49 @@ zfs mount -a
 echo "ZFS import and upgrade process complete."
 
 echo "===================================================================================="
-echo "       Non-Root User and Group Setup"
+echo "       FSTAB Setup"
+echo "===================================================================================="
+read -p "Setup FSTAB mounts? (mergerfs will be auto-installed if required) (Y/n): " -n 1 -r && echo ""
+if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    # Create a backup of fstab
+    cp "/etc/fstab" "/etc/fstab.bak.$(date +%F_%T)" && echo "Backup created at /etc/fstab.bak.$(date +%F_%T)"
+
+    # Use the latest version from "/root/infrastructure/snippets/$(hostname)-fstab"
+    [ -f "/root/infrastructure/snippets/$(hostname)-fstab" ] && cp "/root/infrastructure/snippets/$(hostname)-fstab" "/etc/fstab"
+
+    # add proxmoxiac sample lines if they're not already in the file
+    if ! grep -q "proxmoxiac" /etc/fstab; then
+cat <<EOF >> "/etc/fstab"
+# ===============================================================================
+# proxmoxiac
+# Uncomment/add/modify the below lines as needed. Then, ctrl-x to save and exit.
+# ===============================================================================
+# /cache/storage:/rust1/storage:/rust2/storage /mnt/storage fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
+# /rust1/storage:/rust2/storage                /mnt/rust    fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
+EOF
+    fi
+    
+    # Open fstab in a text editor and ensure it's valid.
+    while true; do
+        ${EDITOR:-nano} /etc/fstab                                                  # Open fstab in default editor or nano
+        systemctl daemon-reload                                                     # Sync systemd with the modified fstab
+        echo "Checking FSTAB mounts for valid syntax..."
+        if mount -a; then break; fi                                                 # Reload the new fstab entries - Automatically break the loop if mount is successful
+        read -p "Errors found. Press any key to try again..." -n 1 -r -s && echo "" # Pause to let user read errors before reopening editor
+    done
+
+    # Update infrastructure-as-code copy of fstab
+    cp "/etc/fstab" "/root/infrastructure/snippets/$(hostname)-fstab" && echo "Backup created at /root/infrastructure/snippets/$(hostname)-fstab"
+
+    # Instll mergerfs if used in fstab
+    grep -q " fuse.mergerfs " /etc/fstab && apt update && apt install -y mergerfs
+
+    mount -a # (or just reboot)
+    # df -h #verify the mount points
+fi
+
+echo "===================================================================================="
+echo "       Non-Root User and Group Permissions Setup"
 echo "===================================================================================="
 # LXC User Setup - Creates UID 100000 (the same UID as LXC Container Root) to minimize risk of LXC mountpoint permission issues
 CURRENT_USER_100000=$(getent passwd 100000 | cut -d: -f1)
@@ -423,54 +465,19 @@ else
     echo "Group $NON_ROOT_GROUP_NAME created with GID 10000"
 fi
 
-read -p "Setup FSTAB mounts? (mergerfs will be auto-installed if required) (Y/n): " -n 1 -r && echo ""
-if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-    # Create a backup of fstab
-    cp "/etc/fstab" "/etc/fstab.bak.$(date +%F_%T)" && echo "Backup created at /etc/fstab.bak.$(date +%F_%T)"
-
-    # Use the latest version from "/root/infrastructure/snippets/$(hostname)-fstab"
-    [ -f "/root/infrastructure/snippets/$(hostname)-fstab" ] && cp "/root/infrastructure/snippets/$(hostname)-fstab" "/etc/fstab"
-
-    # add proxmoxiac sample lines if they're not already in the file
-    if ! grep -q "proxmoxiac" /etc/fstab; then
-cat <<EOF >> "/etc/fstab"
-# ===============================================================================
-# proxmoxiac
-# Uncomment/add/modify the below lines as needed. Then, ctrl-x to save and exit.
-# ===============================================================================
-# /cache/storage:/rust1/storage:/rust2/storage /mnt/storage fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
-# /rust1/storage:/rust2/storage                /mnt/rust    fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
-EOF
-    fi
-    
-    # Open fstab in a text editor and ensure it's valid.
-    while true; do
-        ${EDITOR:-nano} "/etc/fstab" # Open the editor (default to nano if EDITOR is not set)
-        findmnt --verify --verbose && break || echo "fstab syntax is invalid. Please try again." && sleep 5 # If it's not valid, display the error message and open the editor again
-    done
-
-    # Update infrastructure-as-code copy of fstab
-    cp "/etc/fstab" "/root/infrastructure/snippets/$(hostname)-fstab" && echo "Backup created at /root/infrastructure/snippets/$(hostname)-fstab"
-
-    # Instll mergerfs if used in fstab
-    grep -q " fuse.mergerfs " /etc/fstab && apt update && apt install -y mergerfs
-
-    # Update owner, group, and permissions 
-    mapfile -t FSTAB_ENTRIES < <(grep -vE "^#|^$|/dev|/proc" /etc/fstab)
-    for FSTAB_ENTRY in "${FSTAB_ENTRIES[@]}"; do
-        MOUNTPOINT=$(echo "$FSTAB_ENTRY" | awk '{print $2}')
-        if [ -n "$MOUNTPOINT" ]; then
-            mkdir -p "$MOUNTPOINT"
-            read -p "Update Owner, Group, and Permissions for $MOUNTPOINT to $NON_ROOT_USER_NAME:$NON_ROOT_GROUP_NAME (with 2755; SetGID bit 2 + rwxrwxr-x)? (Y/n): " -n 1 -r && echo ""
-            if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-                chown -R $NON_ROOT_USER_NAME:$NON_ROOT_GROUP_NAME "$MOUNTPOINT" # LXC's root user sees the files as owned by root (because 100000 on host = 0 in container) and can write without permission errors
-                chmod -R 2775 "$MOUNTPOINT" # Sets permissions to rwxrwxr-x with the SetGID bit 2. Any new file or folder created in this dir will inherit the GID of the parent folder (10000) instead of the primary group of the user who created it.
-            fi
+# Recursively update owner, group, and permissions for fstab entries
+mapfile -t FSTAB_ENTRIES < <(grep -vE "^#|^$|/dev|/proc" /etc/fstab)
+for FSTAB_ENTRY in "${FSTAB_ENTRIES[@]}"; do
+    MOUNTPOINT=$(echo "$FSTAB_ENTRY" | awk '{print $2}')
+    if [ -n "$MOUNTPOINT" ]; then
+        mkdir -p "$MOUNTPOINT"
+        read -p "Recursively update Owner, Group, and Permissions for $MOUNTPOINT to $NON_ROOT_USER_NAME:$NON_ROOT_GROUP_NAME (with 2755; SetGID bit 2 + rwxrwxr-x)? (Y/n): " -n 1 -r && echo ""
+        if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+            chown -R $NON_ROOT_USER_NAME:$NON_ROOT_GROUP_NAME "$MOUNTPOINT" # LXC's root user sees the files as owned by root (because 100000 on host = 0 in container) and can write without permission errors
+            chmod -R 2775 "$MOUNTPOINT" # Sets permissions to rwxrwxr-x with the SetGID bit 2. Any new file or folder created in this dir will inherit the GID of the parent folder (10000) instead of the primary group of the user who created it.
         fi
-    done
-    mount -a #reload the new fstab entries (or just reboot)
-    # df -h #verify the mount points
-fi
+    fi
+done
 
 echo "===================================================================================="
 echo "       Commit changes to Git"

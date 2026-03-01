@@ -22,12 +22,12 @@ get_secrets() {
     [ "$network_up" -eq 0 ] && echo "ABORTING: Network connectivity not established." >&2 && return 1
     
     # Retrieve Bitwarden Secrets Manager Access Token
-    echo "Fetching secrets from Bitwarden..."
+    echo "Fetching secrets from Bitwarden..." >&2
 
     # Try to fetch secrets
     while [ $count -lt $max_retries ]; do
         result=$(/root/.local/bin/bws secret list --access-token "$BWS_ACCESS_TOKEN" --output json 2>&1)
-        [ $? -eq 0 ] && { success=1; break; } || { echo "WARN: BWS connection failed (Attempt $((count+1))/$max_retries). Retrying in 5s..."; sleep 5; ((count++)); }
+        [ $? -eq 0 ] && { success=1; break; } || { echo "WARN: BWS connection failed (Attempt $((count+1))/$max_retries). Retrying in 5s..." >&2; sleep 5; ((count++)); }
     done
 
     if [ $success -eq 1 ]; then

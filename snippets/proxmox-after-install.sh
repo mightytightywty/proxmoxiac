@@ -50,7 +50,7 @@ if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
 fi
 
 # Install Dependencies
-apt install -y jq git
+apt install -y jq git unzip
 
 # Setup Infrastructure-As-Code Repository
 echo "===================================================================================="

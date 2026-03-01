@@ -75,8 +75,11 @@ fi
 
 # If there's already a mountpoint pointing to HOST_PATH in the CTX_ID.conf file, remove the mountpoint
 ESCAPED_HOST_PATH=$(printf '%s\n' "$HOST_PATH" | sed 's/[].[^$\\*+?()|{}]/\\&/g')
-EXISTING_MP=$(grep -E "^mp[0-9]+: .*[=,]$ESCAPED_HOST_PATH([, ]|$)" "/etc/pve/lxc/${CTX_ID}.conf" | cut -d':' -f1)
-[ -n "$EXISTING_MP" ] && echo "Removing existing mountpoint $EXISTING_MP pointing to $HOST_PATH..." && pct set "$CTX_ID" --delete "$EXISTING_MP"
+EXISTING_MP=$(grep -E "^mp[0-9]+: ([^,]*=)?$ESCAPED_HOST_PATH," "/etc/pve/lxc/${CTX_ID}.conf" | cut -d':' -f1 || true)
+if [ -n "$EXISTING_MP" ]; then
+    echo "Removing existing mountpoint $EXISTING_MP pointing to $HOST_PATH..."
+    pct set "$CTX_ID" --delete "$EXISTING_MP"
+fi
 
 #######################################################
 # Add the dataset to the container

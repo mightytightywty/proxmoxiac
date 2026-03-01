@@ -6,7 +6,7 @@ set -e # Exit on Error
 
 ##############################################################################
 # INSTALL & CONFIGURE TAILSCALE (tested on Debian and Alpine)
-# Usage: setup-tailscale.sh --reset --auto-update --ssh --advertise-exit-node --advertise-routes=192.168.1.0/24 --auth-key=tskey-auth-k2AgKjk82H11ANTRL-Qs6ipPCwnVWJdDm3K6QLVVxkTWbDbBnF
+# Usage: setup-tailscale.sh --reset --auto-update --ssh --advertise-exit-node --advertise-routes=192.168.1.0/24 --auth-key=your-tskey-would-go-here
 # Additional [FLAGS] available for this script only: --non-interactive (will not ask for additional options)
 # Will automatically add your current subnet to --advertise-routes if added via prompt. You must do it yourself in --non-interactive mode.
 # Will automatically add IP Forwarding and ethtool performance enhancements if --advertise-routes is enabled, even in --non-interactive mode.

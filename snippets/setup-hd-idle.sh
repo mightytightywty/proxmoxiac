@@ -39,6 +39,7 @@ apt update >> /dev/null 2>&1 & apt install -y hdparm smartmontools
 HD_IDLE_OPTS="-i 0"
 while read -r DISK SIZE; do
     smartctl -i "/dev/$DISK" 2>/dev/null | grep -qi "rpm" && HD_IDLE_OPTS="$HD_IDLE_OPTS -a $DISK -i $HDD_IDLE_SECONDS"
+    smartctl -i "/dev/$DISK" 2>/dev/null | grep -qi "rpm" && HD_IDLE_OPTS="$HD_IDLE_OPTS -a $DISK -i $HDD_IDLE_SECONDS" || true
 done < <(lsblk -ndo NAME,SIZE,TYPE | awk '$3=="disk"{print $1, $2}')
 
 # if No spinning disks were found then
@@ -69,5 +70,5 @@ systemctl restart hd-idle
 
 # Display current spinning drive states
 while read -r DISK SIZE; do
-    smartctl -i "/dev/$DISK" 2>/dev/null | grep -qi "rpm" && echo -n "/dev/$DISK ($SIZE): " && hdparm -C "/dev/$DISK" | grep 'drive state';
+    smartctl -i "/dev/$DISK" 2>/dev/null | grep -qi "rpm" && { echo -n "/dev/$DISK ($SIZE): "; hdparm -C "/dev/$DISK" | grep 'drive state'; } || true
 done < <(lsblk -ndo NAME,SIZE,TYPE | awk '$3=="disk"{print $1, $2}')

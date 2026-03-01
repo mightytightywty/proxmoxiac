@@ -84,7 +84,7 @@ fi
 #######################################################
 # Add the dataset to the container
 #######################################################
-MP_ID=0; while grep -q "^mp$MP_ID:" "/etc/pve/lxc/${CTX_ID}.conf"; do ((MP_ID++)); done # Iterate to find next free mp index
+MP_ID=0; while grep -q "^mp$MP_ID:" "/etc/pve/lxc/${CTX_ID}.conf"; do MP_ID=$((MP_ID+1)); done # Iterate to find next free mp index
 pct set "$CTX_ID" -mp"$MP_ID" "$HOST_PATH,mp=$LXC_PATH,backup=$BACKUP" # Apply mountpoint with backup enabled
 #pct set $CTX_ID --mp1 "/mnt/storage,mp=/mnt/storage,backup=0"                       # Mount /mnt/storage (if required)
 echo "Successfully added $HOST_PATH to CT $CTX_ID at $LXC_PATH as mp$MP_ID with backup=$BACKUP" # Confirm completion

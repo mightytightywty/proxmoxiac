@@ -41,7 +41,6 @@ add_to_crontab() {
 # Load or Create CONFIG_FILE
 CONFIG_FILE="/root/infrastructure/snippets/$(hostname)-host-config.sh"                                      # Set the Host Config File Location (within /root/infrastructure)
 [[ -f "$CONFIG_FILE" ]] && echo "Loading existing configuration from $CONFIG_FILE" && source "$CONFIG_FILE" # If Host Config File exists, execute it
-add_line_if_missing $CONFIG_FILE "#!/bin/bash"                                                              # If Host Config File doesn't exist, create it, and add a shebang
 
 # Update Proxmox
 read -p "Update Proxmox? (Y/n): " -n 1 -r && echo ""
@@ -61,7 +60,6 @@ echo "==========================================================================
 # Setup local Infrastructure-As-Code repository (clone if it doesn't exist, or update if it does)
 if ! git -C "/root/infrastructure" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     prompt "GITHUB_USERNAME" "What's your Github Username?" "" "Y"
-    add_line_if_missing $CONFIG_FILE "GITHUB_USERNAME=\"$GITHUB_USERNAME\""
     prompt "IAC_REPO_URL" "Your Personal Proxmoxiac Fork Git Repo URL" "https://github.com/$GITHUB_USERNAME/proxmoxiac.git" "Y"
     if [[ $(curl -I -L -s -o /dev/null -w "%{http_code}" "$IAC_REPO_URL") == "200" ]]; then # check if git repo at $IAC_REPO_URL is public or private
         echo "Infrastructure-As-Code Repo is Public. No Access Token Required.";
@@ -78,9 +76,16 @@ if ! git -C "/root/infrastructure" rev-parse --is-inside-work-tree >/dev/null 2>
             fi
         done
     fi
+    # Ensure /root/infrastructure is empty
+    if [ -d "/root/infrastructure" ]; then
+        echo "Warning: /root/infrastructure already exists but is not a valid git repository."
+        read -p "Do you want to DELETE it and re-clone? (y/N): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ ]] && rm -rf "/root/infrastructure" || { echo "Aborting. Please resolve the directory conflict manually."; exit 1; }
+    fi
     mkdir -p "/root/infrastructure"                                               # Ensure the full path exists
     chown -R root:root "/root/infrastructure" && chmod 700 "/root/infrastructure" # Restrict access to root only
     git clone "$IAC_REPO_URL" "/root/infrastructure"                              # Clone repo to local IAC path
+    add_line_if_missing $CONFIG_FILE "#!/bin/bash"                                # If Host Config File doesn't exist, create it, and add a shebang
+    add_line_if_missing $CONFIG_FILE "GITHUB_USERNAME=\"$GITHUB_USERNAME\""       # Save GITHUB_USERNAME to config file
 else
     echo "Found existing Infrastructure-As-Code repository at '/root/infrastructure'. Checking for updates via git pull..."
     # Git pull the latest infrastructure-as-code from repository

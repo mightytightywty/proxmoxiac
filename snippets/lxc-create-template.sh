@@ -263,8 +263,8 @@ pct exec $CTX_ID -- bash -c "usermod -aG $NON_ROOT_GROUP_NAME root"  # Add root 
 
 # verify docker is using the correct storage driver - should be "overlay2"
 DOCKER_DRIVER=$(pct exec $CTX_ID -- docker info --format '{{.Driver}}')
-if [ "$DOCKER_DRIVER" != "overlay2" ]; then
-    echo "WARNING: Docker is using storage driver '$DOCKER_DRIVER' instead of 'overlay2'."
+if [[ "$DOCKER_DRIVER" != "overlay2" && "$DOCKER_DRIVER" != "overlayfs" ]]; then
+    echo "WARNING: Docker is using storage driver '$DOCKER_DRIVER' instead of 'overlay2' or 'overlayfs'."
     read -p "This may cause performance issues or nesting errors. Continue anyway? (y/N): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -291,8 +291,7 @@ pct exec $CTX_ID -- bash -c "if [ -f /var/lib/dbus/machine-id ]; then rm /var/li
 
 #Clear logs and command history
 pct exec $CTX_ID -- bash -c "truncate -s 0 /var/log/*log"
-pct exec $CTX_ID -- bash -c "history -c"
-pct exec $CTX_ID -- bash -c "history -w"
+pct exec $CTX_ID -- bash -c "rm -f /root/.bash_history"
 
 pct shutdown $CTX_ID                                            #shutdown the container
 pct set $CTX_ID --delete mp0                                    #remove mp0 (zvol) before cloning or templating

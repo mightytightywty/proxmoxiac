@@ -34,7 +34,7 @@ add_line_if_missing() {
 # If you don't, it will delete all crontabs that match the CRON_JOB exactly
 # Usage: add_to_crontab "$CRON_JOB" ["$SEARCH_STRING"]
 add_to_crontab() {
-    echo "$1" | grep -qE '^(@(reboot|yearly|annually|monthly|weekly|daily|midnight|hourly)|([0-9*/,-]+ +){4}[0-9*/,-]+) ' || { echo "Error: Invalid cron schedule format. Please try again."; exit 1; }
+    echo "$1" | grep -qE '^(@(reboot|yearly|annually|monthly|weekly|daily|midnight|hourly)|([-0-9*/,]+ +){4}[-0-9*/,]+) ' || { echo "Error: Invalid cron schedule format. Please try again."; exit 1; }
     (crontab -l 2>/dev/null | grep -Fv "${2:-$1}" || true; echo "$1") | crontab -
 }
 
@@ -56,7 +56,6 @@ apt install -y jq git
 echo "===================================================================================="
 echo "       Infrastructure-As-Code Repository Setup"
 echo "===================================================================================="
-
 # Setup local Infrastructure-As-Code repository (clone if it doesn't exist, or update if it does)
 if ! git -C "/root/infrastructure" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     prompt "GITHUB_USERNAME" "What's your Github Username?" "" "Y"
@@ -155,6 +154,9 @@ if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     done
 fi
 
+echo "===================================================================================="
+echo "       Proxmox Helper Script Setup"
+echo "===================================================================================="
 if read -p "Run Proxmox Helper Script 'PVE Post Install' (recommended) ? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     # Proxmox Helper Script - PVE Post Install
     bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/pve/post-pve-install.sh)"

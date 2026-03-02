@@ -52,6 +52,8 @@ fi
 # Install Dependencies
 apt install -y jq git unzip
 
+export PATH="$PATH:/root/.local/bin"
+
 # Setup Infrastructure-As-Code Repository
 echo "===================================================================================="
 echo "       Infrastructure-As-Code Repository Setup"
@@ -253,6 +255,9 @@ qm list | awk '$3 == "running" {print $1}' | while read vm; do qm guest exec ${v
 EOF
 fi
 
+# Permanently add "/root/.local/bin" to PATH, but only if it's not already there.
+add_line_if_missing "/root/.bashrc" 'export PATH="$PATH:/root/.local/bin"'
+
 # Add PATH to the TOP of crontab (only if it's not already there)
 (echo "PATH=$PATH"; crontab -l 2>/dev/null | grep -Fv "PATH=$PATH" || true) | crontab -
 
@@ -317,8 +322,12 @@ echo "       ZFS Setup"
 echo "===================================================================================="
 # ZFS - Find and Import all unimported pools
 mapfile -t pools < <(zpool import | awk '/pool:/ {print $2}') # Extract unimported pool names into array
-if [ ${#pools[@]} -gt 0 ] && read -p "Found ${#pools[@]} unimported ZFS pools (${pools[@]}). Do you want to import them? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-    for p in "${pools[@]}"; do echo "Importing $p..."; zpool import -f "$p"; done # Force import each pool
+if [ ${#pools[@]} -gt 0 ]; then
+    echo "Found ${#pools[@]} unimported ZFS pools: ${pools[*]}"
+    read -p "Do you want to import them? (Y/n): " -n 1 -r && echo ""
+    if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+        for p in "${pools[@]}"; do echo "Importing $p..."; zpool import -f "$p"; done # Force import each pool
+    fi
 fi
 
 # Loop through all imported zpools

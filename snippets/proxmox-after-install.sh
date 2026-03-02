@@ -286,7 +286,7 @@ read -p "Install Tailscale directly on Proxmox Host? (Y/n): " -n 1 -r && echo ""
 if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     [[ "${TAILSCALE_ARGS[*]}" != *"--non-interactive"* ]]     && TAILSCALE_ARGS+=("--non-interactive") # Tell the install script to run non-interactively
     [[ "${TAILSCALE_ARGS[*]}" != *"--reset"* ]]               && TAILSCALE_ARGS+=("--reset") # Reset unspecified settings to default values
-    [[ "${TAILSCALE_ARGS[*]}" != *"--auto-update"* ]]         && [ ! -f "/etc/alpine-release" ] && read -p "Enable Automatic Updates? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--auto-update")
+    #[[ "${TAILSCALE_ARGS[*]}" != *"--auto-update"* ]]         && [ ! -f "/etc/alpine-release" ] && read -p "Enable Automatic Updates? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--auto-update")
     [[ "${TAILSCALE_ARGS[*]}" != *"--ssh"* ]]                 && read -p "Enable Tailscale SSH? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--ssh")
     [[ "${TAILSCALE_ARGS[*]}" != *"--advertise-exit-node"* ]] && read -p "Advertise Exit Node? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--advertise-exit-node")
     if [[ "${TAILSCALE_ARGS[*]}" != *"--advertise-routes"* ]]; then

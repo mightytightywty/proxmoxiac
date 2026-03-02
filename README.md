@@ -150,7 +150,7 @@ Helper to easily add storage to your LXC containers.
 Installs and configures Tailscale. It handles all standard tailscale flags like `--advertise-routes` and automatically applies `ethtool` optimizations for subnet routers. Feel free to run this on your LXCs or VMs as well.
 *   **Usage**:
     ```bash
-    ./setup-tailscale.sh --reset --auto-update --ssh --advertise-exit-node --advertise-routes=192.168.1.0/24 --auth-key=your-tskey-would-go-here
+    ./setup-tailscale.sh --reset --ssh --advertise-exit-node --advertise-routes=192.168.1.0/24 --auth-key=your-tskey-would-go-here
     ```
 *   **Notes**:
     * Additional [FLAGS] available for this script only: --non-interactive (will not ask for additional options)

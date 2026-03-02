@@ -174,8 +174,8 @@ if [ ${#NOTIFICATIONS[@]} -gt 0 ]; then
     for NOTIFICATION in "${NOTIFICATIONS[@]}"; do
         echo $NOTIFICATION;
         if read -p "Import Pre-configured Notification endpoints from config file? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-            read -p "SMTP Password? [your-app-password]: ";          SMTP_PW="--password ${REPLY:-your-app-password}"
-            eval pvesh $NOTIFICATION "$SMTP_PW" || echo "Warning: Failed to apply notification setting: ${NOTIFICATION}"
+            read -p "SMTP Password? [your-app-password]: ";          SMTP_PW_VAL="${REPLY:-your-app-password}"
+            eval pvesh $NOTIFICATION --password $(printf %q "$SMTP_PW_VAL") || echo "Warning: Failed to apply notification setting: ${NOTIFICATION}"
         fi
     done
     echo ""
@@ -192,10 +192,10 @@ elif read -p "Setup SMTP Notifications? (Y/n): " -n 1 -r && echo "" && [[ $REPLY
         # read -p "SMTP Port? [587]: ";                            SMTP_ARGS+=(--port "${REPLY:-587}") # Removed as it throws an error, and starttls defaults to 587 anyway
         read -p "SMTP Mode? [starttls]: ";                       SMTP_ARGS+=(--mode "${REPLY:-starttls}")
         read -p "SMTP Username? [your-email@gmail.com]: ";       SMTP_ARGS+=(--username "${REPLY:-your-email@gmail.com}")
-        read -p "SMTP Password? [your-app-password]: ";          SMTP_PW="--password ${REPLY:-your-app-password}"
+        read -p "SMTP Password? [your-app-password]: ";          SMTP_PW_VAL="${REPLY:-your-app-password}"
         read -p "SMTP From Address? [from-address@gmail.com]: "; SMTP_ARGS+=(--from-address "${REPLY:-$ADMIN_EMAIL}")
         read -p "SMTP To Address? [$ADMIN_EMAIL]: ";             SMTP_ARGS+=(--mailto "${REPLY:-$ADMIN_EMAIL}")
-        if pvesh "${SMTP_ARGS[@]}" "$SMTP_PW" && add_line_if_missing "$CONFIG_FILE" "NOTIFICATIONS+=(\"$(printf "%q " "${SMTP_ARGS[@]}")\")"; then
+        if pvesh "${SMTP_ARGS[@]}" --password "$SMTP_PW_VAL" && add_line_if_missing "$CONFIG_FILE" "NOTIFICATIONS+=(\"$(printf "%q " "${SMTP_ARGS[@]}")\")"; then
             echo "Successfully Added SMTP Notifications"
         else
             read -p "Invalid SMTP Notification. Retry? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && continue

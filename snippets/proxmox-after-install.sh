@@ -313,6 +313,36 @@ if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
 fi
 
 echo "===================================================================================="
+echo "       ZFS Setup"
+echo "===================================================================================="
+# ZFS - Find and Import all unimported pools
+mapfile -t pools < <(zpool import | awk '/pool:/ {print $2}') # Extract unimported pool names into array
+if [ ${#pools[@]} -gt 0 ] && read -p "Found ${#pools[@]} unimported ZFS pools (${pools[@]}). Do you want to import them? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    for p in "${pools[@]}"; do echo "Importing $p..."; zpool import -f "$p"; done # Force import each pool
+fi
+
+# Loop through all imported zpools
+mapfile -t pools < <(zpool list -H -o name)
+for p in "${pools[@]}"; do
+    # Offer to disable sync if sync is currently enabled
+    if [[ "$(zfs get -H -o value sync "$p")" == "enabled" ]]; then
+        read -p "Sync is currently enabled on ZFS Pool '$p'. For consumer SSDs, it's recommended to disable it to improve performance and drastically reduce premature wear. Proceed? (Y/n): " -n 1 -r && echo ""
+        [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && zfs set sync=disabled $p
+    fi
+
+    # Offer to upgrade pool if it's eligible for an upgrade
+    [ "$p" == "rpool" ] && continue # Skip rpool (typical boot pool name) to avoid incompatibility (the bootloader may not support new ZFS features yet)
+    zpool upgrade | grep -w "$p" >/dev/null || continue # Skip this zpool if no upgrades are available
+    read -p "ZFS Pool '$p' has an upgrade available. Upgrade to latest features? This is irreversible. (Y/n): " -n 1 -r && echo ""
+    [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && zpool upgrade "$p"
+done
+
+# ZFS - Ensure everything is mounted
+zfs mount -a
+
+echo "ZFS import and upgrade process complete."
+
+echo "===================================================================================="
 echo "       Storage Setup"
 echo "===================================================================================="
 # OPTIONALLY Drop local-lvm and reallocate space to the root partition
@@ -348,7 +378,7 @@ while true; do
         PVESM_ARGS=(add)
         read -p "Storage Type? [zfspool] Options: (btrfs | cephfs | cifs | dir | esxi | iscsi | iscsidirect | lvm | lvmthin | nfs | pbs | rbd | zfs | zfspool): "; PVESM_ARGS+=("${REPLY:-zfspool}")
         read -p "Storage ID (Name)? [cache]: ";                       PVESM_ARGS+=("${REPLY:-cache}")
-        read -p "ZFS Dataset? [cache/proxmox-storage]: ";             PVESM_ARGS+=(--pool "${REPLY:-cache}")
+        read -p "ZFS Pool? [cache]: ";                                PVESM_ARGS+=(--pool "${REPLY:-cache}")
         read -p "Content Types, comma separated? [images,rootdir]: "; PVESM_ARGS+=(--content "${REPLY:-images,rootdir}")
         read -p "Thin Provisioning? [1]: ";                           PVESM_ARGS+=(--sparse "${REPLY:-1}")
         read -p "Storage Blocksize? [16k]: ";                         PVESM_ARGS+=(--blocksize "${REPLY:-16k}")
@@ -360,36 +390,6 @@ while true; do
     fi
     break
 done
-
-echo "===================================================================================="
-echo "       ZFS Setup"
-echo "===================================================================================="
-# ZFS - Find and Import all unimported pools
-mapfile -t pools < <(zpool import | awk '/pool:/ {print $2}') # Extract unimported pool names into array
-if [ ${#pools[@]} -gt 0 ] && read -p "Found ${#pools[@]} unimported ZFS pools (${pools[@]}). Do you want to import them? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-    for p in "${pools[@]}"; do echo "Importing $p..."; zpool import -f "$p"; done # Force import each pool
-fi
-
-# Loop through all imported zpools
-mapfile -t pools < <(zpool list -H -o name)
-for p in "${pools[@]}"; do
-    # Offer to disable sync if sync is currently enabled
-    if [[ "$(zfs get -H -o value sync "$p")" == "enabled" ]]; then
-        read -p "Sync is currently enabled on ZFS Pool '$p'. For consumer SSDs, it's recommended to disable it to improve performance and drastically reduce premature wear. Proceed? (Y/n): " -n 1 -r && echo ""
-        [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && zfs set sync=disabled $p
-    fi
-
-    # Offer to upgrade pool if it's eligible for an upgrade
-    [ "$p" == "rpool" ] && continue # Skip rpool (typical boot pool name) to avoid incompatibility (the bootloader may not support new ZFS features yet)
-    zpool upgrade | grep -w "$p" >/dev/null || continue # Skip this zpool if no upgrades are available
-    read -p "ZFS Pool '$p' has an upgrade available. Upgrade to latest features? This is irreversible. (Y/n): " -n 1 -r && echo ""
-    [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && zpool upgrade "$p"
-done
-
-# ZFS - Ensure everything is mounted
-zfs mount -a
-
-echo "ZFS import and upgrade process complete."
 
 echo "===================================================================================="
 echo "       FSTAB Setup"

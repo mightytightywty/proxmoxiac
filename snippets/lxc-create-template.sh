@@ -243,7 +243,7 @@ pct start $CTX_ID                              # Start the container
 
 # Wait for network connectivity
 echo -n "Waiting for network connectivity..."
-pct exec "$CTX_ID" -- bash -c 'for i in {1..30}; do ping -c 1 -W 1 8.8.8.8 >/dev/null 2>&1 && exit 0 || sleep 1; done; exit 1'
+pct exec "$CTX_ID" -- /bin/sh -c 'i=0; while [ $i -lt 30 ]; do ping -c 1 -W 1 8.8.8.8 >/dev/null 2>&1 && exit 0; sleep 1; i=$((i+1)); done; exit 1'
 
 # Detect Alpine Linux
 if pct exec $CTX_ID -- [ -f /etc/alpine-release ]; then

@@ -169,13 +169,13 @@ echo "==========================================================================
 echo "       Notifications Setup"
 echo "===================================================================================="
 # Setup Pre-configured Datacenter > Notifications
-if [ ${#NOTIFICATIONS[@]} -gt 0 ]; then
-    echo "Found ${#NOTIFICATIONS[@]} Pre-configured Notification endpoints:"
-    for NOTIFICATION in "${NOTIFICATIONS[@]}"; do
-        echo $NOTIFICATION;
-        if read -p "Import Pre-configured Notification endpoints from config file? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+if [ ${#SMTP_ENDPOINTS[@]} -gt 0 ]; then
+    echo "Found ${#SMTP_ENDPOINTS[@]} Pre-configured SMTP Notification endpoints:"
+    for SMTP_ENDPOINT in "${SMTP_ENDPOINTS[@]}"; do
+        echo $SMTP_ENDPOINT;
+        if read -p "Import above Pre-configured SMTP Notification endpoint from config file? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
             read -p "SMTP Password? [your-app-password]: ";          SMTP_PW_VAL="${REPLY:-your-app-password}"
-            eval pvesh $NOTIFICATION --password $(printf %q "$SMTP_PW_VAL") || echo "Warning: Failed to apply notification setting: ${NOTIFICATION}"
+            eval pvesh $SMTP_ENDPOINT --password $(printf %q "$SMTP_PW_VAL") || echo "Warning: Failed to apply notification setting: ${SMTP_ENDPOINT}"
         fi
     done
     echo ""
@@ -187,7 +187,8 @@ if [ -f /etc/pve/notifications.cfg ] && grep -q "^smtp:" /etc/pve/notifications.
 elif read -p "Setup SMTP Notifications? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     : "${ADMIN_EMAIL:=$(pvesh get /access/users/root@pam --output=json | jq -r 'select(.email != null) .email')}" # Set ADMIN_EMAIL to the root@pam user's email address
     while true; do
-        SMTP_ARGS=(create /cluster/notifications/endpoints/smtp --name "SMTP-Alerts" --mode starttls --author "Proxmox-$(hostname)")
+        SMTP_ARGS=(create /cluster/notifications/endpoints/smtp  --mode starttls --author "Proxmox-$(hostname)")
+        read -p "SMTP Server Name? [SMTP-Alerts]: ";             SMTP_ARGS+=(--name "${REPLY:-SMTP-Alerts}")
         read -p "SMTP Server? [smtp.gmail.com]: ";               SMTP_ARGS+=(--server "${REPLY:-smtp.gmail.com}")
         # read -p "SMTP Port? [587]: ";                            SMTP_ARGS+=(--port "${REPLY:-587}") # Removed as it throws an error, and starttls defaults to 587 anyway
         read -p "SMTP Mode? [starttls]: ";                       SMTP_ARGS+=(--mode "${REPLY:-starttls}")
@@ -195,7 +196,7 @@ elif read -p "Setup SMTP Notifications? (Y/n): " -n 1 -r && echo "" && [[ $REPLY
         read -p "SMTP Password? [your-app-password]: ";          SMTP_PW_VAL="${REPLY:-your-app-password}"
         read -p "SMTP From Address? [from-address@gmail.com]: "; SMTP_ARGS+=(--from-address "${REPLY:-$ADMIN_EMAIL}")
         read -p "SMTP To Address? [$ADMIN_EMAIL]: ";             SMTP_ARGS+=(--mailto "${REPLY:-$ADMIN_EMAIL}")
-        if pvesh "${SMTP_ARGS[@]}" --password "$SMTP_PW_VAL" && add_line_if_missing "$CONFIG_FILE" "NOTIFICATIONS+=(\"$(printf "%q " "${SMTP_ARGS[@]}")\")"; then
+        if pvesh "${SMTP_ARGS[@]}" --password "$SMTP_PW_VAL" && add_line_if_missing "$CONFIG_FILE" "SMTP_ENDPOINTS+=(\"$(printf "%q " "${SMTP_ARGS[@]}")\")"; then
             echo "Successfully Added SMTP Notifications"
         else
             read -p "Invalid SMTP Notification. Retry? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && continue
@@ -206,7 +207,7 @@ fi
 
 # Set SMTP-Alerts as the default notification endpoint?
 if [ -f /etc/pve/notifications.cfg ] && grep -q "^smtp: SMTP-Alerts" /etc/pve/notifications.cfg && ! pvesh get /cluster/notifications/matchers/default-matcher --output-format json 2>/dev/null | jq -e '.target | index("SMTP-Alerts")' >/dev/null; then
-    if read -p "Set SMTP as the default notification endpoint? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    if read -p "Set SMTP-Alerts as the default notification endpoint? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
         if pvesh get /cluster/notifications/matchers/default-matcher >/dev/null 2>&1; then
             echo "Updating default-matcher to use SMTP-Alerts..."
             pvesh set /cluster/notifications/matchers/default-matcher --target SMTP-Alerts --comment "Route all notifications to SMTP-Alerts"

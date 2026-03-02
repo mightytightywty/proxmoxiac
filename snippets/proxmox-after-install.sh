@@ -391,11 +391,8 @@ while true; do
         read -p "Content Types, comma separated? [images,rootdir]: "; PVESM_ARGS+=(--content "${REPLY:-images,rootdir}")
         read -p "Thin Provisioning? [1]: ";                           PVESM_ARGS+=(--sparse "${REPLY:-1}")
         read -p "Storage Blocksize? [16k]: ";                         PVESM_ARGS+=(--blocksize "${REPLY:-16k}")
-        if pvesm "${PVESM_ARGS[@]}" && add_line_if_missing "$CONFIG_FILE" "PVESM+=(\"$(printf "%q " "${PVESM_ARGS[@]}")\")"; then
-            read -p "Successfully Added Proxmox Storage. Add another? (y/N): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ ]] && continue
-        else
-            read -p "Invalid Proxmox Storage. Retry? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && continue
-        fi
+        pvesm "${PVESM_ARGS[@]}" && add_line_if_missing "$CONFIG_FILE" "PVESM+=(\"$(printf "%q " "${PVESM_ARGS[@]}")\")" && echo "Successfully added Proxmox storage." || echo "Syntax entered was invalid. Could not save as Proxmox storage."
+        continue
     fi
     break
 done

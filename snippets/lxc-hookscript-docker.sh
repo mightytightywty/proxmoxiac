@@ -59,7 +59,8 @@ case "$phase" in
 
         # Find directories inside the LXC under the docker root folder -L follows symbolic links
         # Use mapfile to safely handle paths with spaces
-        mapfile -t LXC_SERVICE_PATHS < <(pct exec "$vmid" -- find -L "/opt/docker" -mindepth 1 -maxdepth 1 -type d)
+        echo "Starting services in alphabetical order."
+        mapfile -t LXC_SERVICE_PATHS < <(pct exec "$vmid" -- find -L "/opt/docker" -mindepth 1 -maxdepth 1 -type d | sort)
 
         if [ ${#LXC_SERVICE_PATHS[@]} -eq 0 ]; then
             echo "No docker service directories found in /opt/docker."
@@ -100,8 +101,8 @@ case "$phase" in
         pct exec "$vmid" -- [ -d "/opt/docker" ] || exit 0
 
         # Stop all services
-        echo "Stopping services."
-        mapfile -t LXC_SERVICE_PATHS < <(pct exec "$vmid" -- find -L "/opt/docker" -mindepth 1 -maxdepth 1 -type d)
+        echo "Stopping services in reverse alphabetical order."
+        mapfile -t LXC_SERVICE_PATHS < <(pct exec "$vmid" -- find -L "/opt/docker" -mindepth 1 -maxdepth 1 -type d | sort -r)
         
         if [ ${#LXC_SERVICE_PATHS[@]} -gt 0 ]; then
             for LXC_SERVICE_PATH in "${LXC_SERVICE_PATHS[@]}"; do

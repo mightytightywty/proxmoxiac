@@ -215,6 +215,13 @@ pct create "${CREATE_ARGS[@]}"
 # Map GID 0-9999 inside to 100000-109999 on host
 # Map GID 10000 inside to 10000 on host (THE MAGIC LINE)
 # Map GID 10001-65535 inside to 110001-165535 on host
+
+# Ensure the host allows the root user to map GID 10000 (required for the magic line below)
+if ! grep -q "root:10000:1" /etc/subgid; then
+    echo "Adding 'root:10000:1' to /etc/subgid to allow GID 10000 mapping..."
+    echo "root:10000:1" >> /etc/subgid
+fi
+
 cat <<EOF >> "/etc/pve/lxc/$CTX_ID.conf"
 lxc.idmap: u 0 100000 65536
 lxc.idmap: g 0 100000 10000

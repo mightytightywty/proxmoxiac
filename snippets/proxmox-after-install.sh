@@ -258,7 +258,9 @@ fi
 
 # Schedule cron jobs
 add_to_crontab "0 * * * * /root/infrastructure/snippets/$(hostname)-cron-hourly.sh"  # Hourly - Every hour, on the hour
+echo "Successfully added cron job for /root/infrastructure/snippets/$(hostname)-cron-hourly.sh"
 add_to_crontab "30 0 * * 0 /root/infrastructure/snippets/$(hostname)-cron-weekly.sh" # Weekly - Sundays at 12:30am
+echo "Successfully added cron job for /root/infrastructure/snippets/$(hostname)-cron-weekly.sh"
 
 # Enable built-in job to run fstrim weekly on Proxmox host too. It should be enabled by default, but it doesn't hurt to double-check.
 systemctl enable fstrim.timer
@@ -297,7 +299,7 @@ if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     [[ "${TAILSCALE_ARGS[*]}" != *"--accept-routes"* ]]       && read -p "Accept Routes? (This is NOT recommended - it can cause routing conflicts with Proxmox) (y/N): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ ]] && TAILSCALE_ARGS+=("--accept-routes")
 
     # Save TAILSCALE_ARGS to CONFIG_FILE, intentionally leaving out --auth-key
-    for TAILSCALE_ARG in "${TAILSCALE_ARGS[@]}"; do eval add_line_if_missing "$CONFIG_FILE" "TAILSCALE_ARGS+=(\"$TAILSCALE_ARG\")"; done
+    for TAILSCALE_ARG in "${TAILSCALE_ARGS[@]}"; do add_line_if_missing "$CONFIG_FILE" "TAILSCALE_ARGS+=(\"$TAILSCALE_ARG\")"; done
 
     [[ "${TAILSCALE_ARGS[*]}" != *"--auth-key"* ]]            && read -p "Do you want to use a Tailscale Auth Key? (y/N): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ ]] && read -p "Enter your Tailscale Auth Key: " TAILSCALE_AUTH_KEY && TAILSCALE_ARGS+=("--auth-key=${TAILSCALE_AUTH_KEY:-}")
 

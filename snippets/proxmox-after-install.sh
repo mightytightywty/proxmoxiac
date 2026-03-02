@@ -5,7 +5,15 @@ set -e # Exit on Error
 [ "$EUID" -ne 0 ] && echo "Please run as root (sudo)." && exit 1
 
 echo "===================================================================================="
-echo "       Proxmox After Install Setup Script"
+echo "       Proxmox Helper Script Setup"
+echo "===================================================================================="
+if read -p "Run Proxmox Helper Script 'PVE Post Install' (recommended) ? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    # Proxmox Helper Script - PVE Post Install
+    bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/pve/post-pve-install.sh)"
+fi
+
+echo "===================================================================================="
+echo "       Proxmoxiac After Install Setup Script"
 echo "===================================================================================="
 
 # Helper Function for Prompts
@@ -154,14 +162,6 @@ if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
         fi
         sleep 1
     done
-fi
-
-echo "===================================================================================="
-echo "       Proxmox Helper Script Setup"
-echo "===================================================================================="
-if read -p "Run Proxmox Helper Script 'PVE Post Install' (recommended) ? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-    # Proxmox Helper Script - PVE Post Install
-    bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/pve/post-pve-install.sh)"
 fi
 
 echo "===================================================================================="
@@ -425,15 +425,13 @@ EOF
         ${EDITOR:-nano} /etc/fstab                                                  # Open fstab in default editor or nano
         systemctl daemon-reload                                                     # Sync systemd with the modified fstab
         echo "Checking FSTAB mounts for valid syntax..."
+        grep -q " fuse.mergerfs " /etc/fstab && apt install -y mergerfs             # Install mergerfs if used in fstab
         if mount -a; then break; fi                                                 # Reload the new fstab entries - Automatically break the loop if mount is successful
         read -p "Errors found. Press any key to try again..." -n 1 -r -s && echo "" # Pause to let user read errors before reopening editor
     done
 
     # Update infrastructure-as-code copy of fstab
     cp "/etc/fstab" "/root/infrastructure/snippets/$(hostname)-fstab" && echo "Backup created at /root/infrastructure/snippets/$(hostname)-fstab"
-
-    # Instll mergerfs if used in fstab
-    grep -q " fuse.mergerfs " /etc/fstab && apt update && apt install -y mergerfs
 
     mount -a # (or just reboot)
     # df -h #verify the mount points

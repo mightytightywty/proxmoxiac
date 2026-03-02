@@ -190,7 +190,6 @@ rm -rf /mnt/tmp_docker_setup
 CREATE_ARGS=(
   "$CTX_ID" "/var/lib/vz/template/cache/$CT_TEMPLATE"
   --net0 "name=eth0,bridge=vmbr0,ip=dhcp"
-  --timezone "host"
   --ssh-public-keys "/root/.ssh/authorized_keys"
   --mp0 "/dev/zvol/$ZVOL_DOCKER,mp=/var/lib/docker,backup=1"
   --features nesting=1,keyctl=1
@@ -259,6 +258,9 @@ else
     pct exec $CTX_ID -- bash -c "curl -fsSL https://get.docker.com | sh" # install docker
     pct exec $CTX_ID -- bash -c "systemctl enable --now docker"          # enable and start the docker daemon
 fi
+
+# Set the timezone to match the host (now that tzdata is installed)
+pct set $CTX_ID --timezone host
 
 # Set up Group ID 10000 to match Proxmox Host
 NON_ROOT_GROUP_NAME=$(getent group 10000 | cut -d: -f1)              # Get the name of group 10000 on the proxmox host if it exists

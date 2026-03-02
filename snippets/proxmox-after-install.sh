@@ -6,6 +6,7 @@ set -e # Exit on Error
 
 echo "===================================================================================="
 echo "       Proxmox Helper Script Setup"
+echo "       https://community-scripts.github.io/ProxmoxVE/scripts?id=post-pve-install"
 echo "===================================================================================="
 if read -p "Run Proxmox Helper Script 'PVE Post Install' (recommended) ? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     # Proxmox Helper Script - PVE Post Install
@@ -423,9 +424,14 @@ EOF
     # Open fstab in a text editor and ensure it's valid.
     while true; do
         ${EDITOR:-nano} /etc/fstab                                                  # Open fstab in default editor or nano
-        systemctl daemon-reload                                                     # Sync systemd with the modified fstab
         echo "Checking FSTAB mounts for valid syntax..."
         grep -q " fuse.mergerfs " /etc/fstab && apt install -y mergerfs             # Install mergerfs if used in fstab
+        mapfile -t FSTAB_ENTRIES < <(grep -vE "^#|^$|/dev|/proc" /etc/fstab)
+        for FSTAB_ENTRY in "${FSTAB_ENTRIES[@]}"; do
+            MOUNTPOINT=$(echo "$FSTAB_ENTRY" | awk '{print $2}')
+            [ -n "$MOUNTPOINT" ] && mkdir -p "$MOUNTPOINT"                          # Ensure each of the mountpoint directories listed in FSTAB actually exist
+        done
+        systemctl daemon-reload                                                     # Sync systemd with the modified fstab
         if mount -a; then break; fi                                                 # Reload the new fstab entries - Automatically break the loop if mount is successful
         read -p "Errors found. Press any key to try again..." -n 1 -r -s && echo "" # Pause to let user read errors before reopening editor
     done

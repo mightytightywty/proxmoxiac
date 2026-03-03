@@ -57,10 +57,12 @@ CONFIG_FILE="/etc/default/hd-idle"
 [ -f "$CONFIG_FILE" ] && cp "$CONFIG_FILE" "${CONFIG_FILE}.bak.$(date +%F_%T)" || touch "$CONFIG_FILE"
 
 # Set START_HD_IDLE=true
-grep -q "^START_HD_IDLE=" "$CONFIG_FILE" && sed -i 's/^START_HD_IDLE=.*/START_HD_IDLE=true/' "$CONFIG_FILE" || echo "START_HD_IDLE=true" >> "$CONFIG_FILE"
+sed -i '/^#\?START_HD_IDLE=/d' "$CONFIG_FILE"
+echo "START_HD_IDLE=true" >> "$CONFIG_FILE"
 
 # Set HD_IDLE_OPTS
-grep -q "^HD_IDLE_OPTS=" "$CONFIG_FILE" && sed -i "s|^HD_IDLE_OPTS=.*|HD_IDLE_OPTS=\"$HD_IDLE_OPTS\"|" "$CONFIG_FILE" || echo "HD_IDLE_OPTS=\"$HD_IDLE_OPTS\"" >> "$CONFIG_FILE"
+sed -i '/^#\?HD_IDLE_OPTS=/d' "$CONFIG_FILE"
+echo "HD_IDLE_OPTS=\"$HD_IDLE_OPTS\"" >> "$CONFIG_FILE"
 
 echo "Success! Config updated."
 echo "New Options: $HD_IDLE_OPTS"

@@ -30,8 +30,8 @@ Proxmoxiac is a comprehensive suite of scripts designed to automate the post-ins
 4.  **ZFS Storage (Optional, but recommended)**
     *   **Ideal Setup**:
         *   Do NOT use ZFS for your boot disk. Use EXT4 instead for optimal performance.
-        *   Create a ZFS pool of SSDs called "cache" (can be multiple SSDs if you like).
-        *   Create single drive ZFS pools called "rust1", "rust2", etc. for each of your HDDs.
+        *   Create a ZFS pool of SSDs called "flash" (can be multiple SSDs if you like).
+        *   Create single drive ZFS pools called "tank1", "tank2", etc. for each of your spinning HDDs.
         *   For each of your ZFS pools, create a dataset called "\<poolname\>/storage"
 
 ## 🛠️ Getting Started
@@ -75,7 +75,7 @@ Creates a reusable LXC template optimized for running Docker.
     Options:
     --vmid <id>                  Template LXC ID (default: next available >= 9000)
                                     If it exists, it will delete all clones, and rebuild everything from scratch.
-    --rootfs <spec>              Root filesystem spec (default: volume=cache:10)
+    --rootfs <spec>              Root filesystem spec (default: volume=flash:10)
                                     [volume=]<volume> [,acl=<1|0>] [,mountoptions=<opt[;opt...]>] [,quota=<1|0>] [,replicate=<1|0>] [,ro=<1|0>] [,shared=<1|0>] [,size=<DiskSize>]
     --distro <name>              Distro (default: alpine) <alpine | debian | debian-13-standard | ubuntu>  etc...
     --root                          See all via 'pveam update && pveam available --section system'
@@ -87,10 +87,10 @@ Creates a reusable LXC template optimized for running Docker.
     --cores <num>                CPU Cores (default: 1) If blank, container can use all available cores
     --memory <mb>                Memory in MB (default: 1024)
     --swap <mb>                  Swap in MB (default: 512)
-    --storage <id>               Target Proxmox Storage ID (default: cache) <cache | local>
+    --storage <id>               Target Proxmox Storage ID (default: flash) <flash | local>
     --password <pwd>             Root password. If not defined (recommended), root account is locked from login via SSH, etc.
     --map_host_tun <0|1>         Grants the container read and write permissions for the host TUN character device. Useful for VPNs, Tailscale, etc. (default: 0)
-    --zvol_for_docker <path>     ZVol for Docker (default: cache/basevol-<vmid>-docker)
+    --zvol_for_docker <path>     ZVol for Docker (default: flash/basevol-<vmid>-docker)
                                     Will be formatted in ext4, to be used for /var/lib/docker within each LXC
     --zvol_for_docker_size <sz>  ZVol size (default: 50G)
                                     Will hold all docker images, volumes, etc. Can be resized later if required.
@@ -114,7 +114,7 @@ Creates a reusable LXC template optimized for running Docker.
         --vmid <id>         Template LXC ID to clone from (default: 9000)
         --newid <id>        New LXC ID (default: next available >= 1000)
         --mac <address>     MAC address for the new container (default: random)
-        --zpool <id>        zpol to store the disks on (default: cache)
+        --zpool <id>        zpol to store the disks on (default: flash)
         --help, -h          Show this help message
     ```
 
@@ -135,7 +135,7 @@ Helper to easily add storage to your LXC containers.
     --vmid <id>            LXC ID to add the service to
     --hostpath <path>      Path on Host or ZFS dataset name (examples below)
                                 /mnt/storage
-                                cache/appdata-service-name
+                                flash/appdata-service-name
     --lxcpath <path>       Path on LXC (examples below)
                                 /mnt/storage
                                 /opt/docker/service-name
@@ -166,7 +166,7 @@ Automates the installation and configuration of `hd-idle` to spin down mechanica
     ```bash
     ./setup-hd-idle.sh [seconds]
     ```
-
+<!-- DISABLED FOR NOW, as it seems to be disabling drive spindown
 ### `setup-powertop-autoaspm.sh`
 Optimizes power consumption on the Proxmox host.
 *   **Features**: Installs `powertop` and configures `AutoASPM` (Active State Power Management) to reduce energy usage, particularly useful for home labs.
@@ -174,6 +174,7 @@ Optimizes power consumption on the Proxmox host.
     ```bash
     ./setup-hd-idle.sh [seconds]
     ```
+-->
 
 ### Generated Scripts
 *   **`hostname-host-config.sh`**: Stores the configuration variables selected during the installation process.

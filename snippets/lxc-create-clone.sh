@@ -18,7 +18,7 @@ Optional:
       --vmid <id>         Template LXC ID to clone from (default: 9000)
       --newid <id>        New LXC ID (default: next available >= 1000)
       --mac <address>     MAC address for the new container (default: random)
-      --zpool <id>        zpol to store the disks on (default: cache)
+      --zpool <id>        zpol to store the disks on (default: flash)
       --help, -h          Show this help message
 EOF
 exit 1
@@ -43,7 +43,7 @@ done
 # Populate defaults if not populated
 #######################################################
 : "${TEMPLATE_CTX_ID:=9000}"
-: "${ZPOOL:=cache}"
+: "${ZPOOL:=flash}"
 TEMPLATE_DOCKER_DISK="$ZPOOL/basevol-$TEMPLATE_CTX_ID-docker"
 
 # CLONE_HOSTNAME is required

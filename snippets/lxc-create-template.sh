@@ -16,7 +16,7 @@ Required:
 Options:
   --vmid <id>                  Template LXC ID (default: next available >= 9000)
                                   If it exists, it will delete all clones, and rebuild everything from scratch.
-  --rootfs <spec>              Root filesystem spec (default: volume=cache:10)
+  --rootfs <spec>              Root filesystem spec (default: volume=flash:10)
                                   [volume=]<volume> [,acl=<1|0>] [,mountoptions=<opt[;opt...]>] [,quota=<1|0>] [,replicate=<1|0>] [,ro=<1|0>] [,shared=<1|0>] [,size=<DiskSize>]
   --distro <name>              Distro (default: alpine) <alpine | debian | debian-13-standard | ubuntu>  etc...
   --root                          See all via 'pveam update && pveam available --section system'
@@ -28,10 +28,10 @@ Options:
   --cores <num>                CPU Cores (default: 1) If blank, container can use all available cores
   --memory <mb>                Memory in MB (default: 1024)
   --swap <mb>                  Swap in MB (default: 512)
-  --storage <id>               Target Proxmox Storage ID (default: cache) <cache | local>
+  --storage <id>               Target Proxmox Storage ID (default: flash) <flash | local>
   --password <pwd>             Root password. If not defined (recommended), root account is locked from login via SSH, etc.
   --map_host_tun <0|1>         Grants the container read and write permissions for the host TUN character device. Useful for VPNs, Tailscale, etc. (default: 0)
-  --zvol_for_docker <path>     ZVol for Docker (default: cache/basevol-<vmid>-docker)
+  --zvol_for_docker <path>     ZVol for Docker (default: flash/basevol-<vmid>-docker)
                                   Will be formatted in ext4, to be used for /var/lib/docker within each LXC
   --zvol_for_docker_size <sz>  ZVol size (default: 50G)
                                   Will hold all docker images, volumes, etc. Can be resized later if required.
@@ -76,7 +76,7 @@ fi
 # Set Defaults
 #######################################################
 : "${CTX_HOSTNAME:=alpine-docker-template}"
-: "${CTX_ROOTFS:=volume=cache:10}"
+: "${CTX_ROOTFS:=volume=flash:10}"
 : "${CTX_DISTRO:=alpine}"
 : "${CTX_OSTYPE:=alpine}"
 : "${CTX_UNPRIVILEGED:=1}"
@@ -85,10 +85,10 @@ fi
 : "${CTX_CORES:=1}"
 : "${CTX_MEMORY:=1024}"
 : "${CTX_SWAP:=512}"
-: "${CTX_STORAGE:=cache}"
+: "${CTX_STORAGE:=flash}"
 : "${CTX_PASSWORD:=}"
 : "${CTX_HOST_TUN:=0}"
-: "${ZVOL_DOCKER:=cache/basevol-$CTX_ID-docker}"
+: "${ZVOL_DOCKER:=flash/basevol-$CTX_ID-docker}"
 : "${ZVOL_DOCKER_SIZE:=50G}"
 
 # Default CTX_ID to the next available ID, in the range 9000-9099 by doing a ls on /etc/pve/lxc # This assumes we'll never have more than 100 LXC Templates in the whole cluster

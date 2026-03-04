@@ -15,7 +15,7 @@ Required:
   --vmid <id>            LXC ID to add the service to
   --hostpath <path>      Path on Host or ZFS dataset name (examples below)
                             /mnt/storage
-                            cache/appdata-service-name
+                            flash/appdata-service-name
   --lxcpath <path>       Path on LXC (examples below)
                             /mnt/storage
                             /opt/docker/service-name

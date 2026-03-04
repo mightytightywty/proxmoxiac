@@ -310,11 +310,12 @@ if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     /bin/bash /root/infrastructure/snippets/setup-tailscale.sh "${TAILSCALE_ARGS[@]}"
 fi
 
+# DISABLED FOR NOW, as it seems to be preventing drive spindown
 # Setup Powertop and AutoASPM for Power Usage Optimization
-read -p "Install Powertop and AutoASPM for Power Usage Optimization? (Y/n): " -n 1 -r && echo ""
-if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-    /bin/bash /root/infrastructure/snippets/setup-powertop-autoaspm.sh
-fi
+# read -p "Install Powertop and AutoASPM for Power Usage Optimization? (Y/n): " -n 1 -r && echo ""
+# if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+#     /bin/bash /root/infrastructure/snippets/setup-powertop-autoaspm.sh
+# fi
 
 echo "===================================================================================="
 echo "       ZFS Setup"
@@ -391,8 +392,8 @@ while true; do
     if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
         PVESM_ARGS=(add)
         read -p "Storage Type? [zfspool] Options: (btrfs | cephfs | cifs | dir | esxi | iscsi | iscsidirect | lvm | lvmthin | nfs | pbs | rbd | zfs | zfspool): "; PVESM_ARGS+=("${REPLY:-zfspool}")
-        read -p "Storage ID (Name)? [cache]: ";                       PVESM_ARGS+=("${REPLY:-cache}")
-        read -p "ZFS Pool? [cache]: ";                                PVESM_ARGS+=(--pool "${REPLY:-cache}")
+        read -p "Storage ID (Name)? [flash]: ";                       PVESM_ARGS+=("${REPLY:-flash}")
+        read -p "ZFS Pool? [flash]: ";                                PVESM_ARGS+=(--pool "${REPLY:-flash}")
         read -p "Content Types, comma separated? [images,rootdir]: "; PVESM_ARGS+=(--content "${REPLY:-images,rootdir}")
         read -p "Thin Provisioning? [1]: ";                           PVESM_ARGS+=(--sparse "${REPLY:-1}")
         read -p "Storage Blocksize? [16k]: ";                         PVESM_ARGS+=(--blocksize "${REPLY:-16k}")
@@ -420,8 +421,9 @@ cat <<EOF >> "/etc/fstab"
 # proxmoxiac
 # Uncomment/add/modify the below lines as needed. Then, ctrl-x, y, and [Enter] to save and exit.
 # =================================================================================================
-# /cache/storage:/rust1/storage:/rust2/storage /mnt/storage fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
-# /rust1/storage:/rust2/storage                /mnt/rust    fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
+# /flash/storage                               /mnt/flash   fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
+# /tank/storage:/tank2/storage                 /mnt/tank    fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
+# /flash/storage:/tank1/storage:/tank2/storage /mnt/storage fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
 EOF
     fi
     

@@ -109,3 +109,8 @@ tailscale up "${TAILSCALE_FINAL_ARGS[@]}"
 # Output current tailscale configs
 tailscale status
 tailscale debug prefs
+
+# Reminder to finish setup on tailscale.com
+echo "Don't forget to log into tailscale.com to finish setting up this node."
+echo "Disable key expiry, enable your advertised routes (if enabled), and allow the exit node (if enabled)."
+read -p "Do it now! I'll wait...  Just press enter when you come back."

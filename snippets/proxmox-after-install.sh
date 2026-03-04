@@ -47,10 +47,6 @@ add_to_crontab() {
     (crontab -l 2>/dev/null | grep -Fv "${2:-$1}" || true; echo "$1") | crontab -
 }
 
-# Load or Create CONFIG_FILE
-CONFIG_FILE="/root/infrastructure/snippets/$(hostname)-host-config.sh"                                      # Set the Host Config File Location (within /root/infrastructure)
-[[ -f "$CONFIG_FILE" ]] && echo "Loading existing configuration from $CONFIG_FILE" && source "$CONFIG_FILE" # If Host Config File exists, execute it
-
 # Update Proxmox
 read -p "Update Proxmox? (Y/n): " -n 1 -r && echo ""
 if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
@@ -60,7 +56,6 @@ fi
 
 # Install Dependencies
 apt install -y jq git unzip
-
 export PATH="$PATH:/root/.local/bin"
 
 # Setup Infrastructure-As-Code Repository
@@ -94,13 +89,17 @@ if ! git -C "/root/infrastructure" rev-parse --is-inside-work-tree >/dev/null 2>
     mkdir -p "/root/infrastructure"                                               # Ensure the full path exists
     chown -R root:root "/root/infrastructure" && chmod 700 "/root/infrastructure" # Restrict access to root only
     git clone "$IAC_REPO_URL" "/root/infrastructure"                              # Clone repo to local IAC path
-    add_line_if_missing $CONFIG_FILE "#!/bin/bash"                                # If Host Config File doesn't exist, create it, and add a shebang
-    add_line_if_missing $CONFIG_FILE "GITHUB_USERNAME=\"$GITHUB_USERNAME\""       # Save GITHUB_USERNAME to config file
 else
     echo "Found existing Infrastructure-As-Code repository at '/root/infrastructure'. Checking for updates via git pull..."
     # Git pull the latest infrastructure-as-code from repository
     git -C "/root/infrastructure" pull origin main --rebase --autostash && echo "Git pull successful." || { echo "ERROR: Could not pull latest Infrastructure-As-Code from Git."; exit 1; }
 fi
+
+# Load or Create CONFIG_FILE
+CONFIG_FILE="/root/infrastructure/snippets/$(hostname)-host-config.sh"                                      # Set the Host Config File Location (within /root/infrastructure)
+[[ -f "$CONFIG_FILE" ]] && echo "Loading existing configuration from $CONFIG_FILE" && source "$CONFIG_FILE" # If Host Config File exists, execute it
+add_line_if_missing $CONFIG_FILE "#!/bin/bash"                                # If Host Config File doesn't exist, create it, and add a shebang
+add_line_if_missing $CONFIG_FILE "GITHUB_USERNAME=\"$GITHUB_USERNAME\""       # Save GITHUB_USERNAME to config file
 
 # Setup Bitwarden Secrets Manager CLI via official install method - installs to /root/.local/bin/bws
 curl -Ls https://bws.bitwarden.com/install | sh
@@ -187,7 +186,7 @@ if [ -f /etc/pve/notifications.cfg ] && grep -q "^smtp:" /etc/pve/notifications.
 elif read -p "Setup SMTP Notifications? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     : "${ADMIN_EMAIL:=$(pvesh get /access/users/root@pam --output=json | jq -r 'select(.email != null) .email')}" # Set ADMIN_EMAIL to the root@pam user's email address
     while true; do
-        SMTP_ARGS=(create /cluster/notifications/endpoints/smtp  --mode starttls --author "Proxmox-$(hostname)")
+        SMTP_ARGS=(create /cluster/notifications/endpoints/smtp --author "Proxmox-$(hostname)")
         read -p "SMTP Server Name? [SMTP-Alerts]: ";             SMTP_ARGS+=(--name "${REPLY:-SMTP-Alerts}")
         read -p "SMTP Server? [smtp.gmail.com]: ";               SMTP_ARGS+=(--server "${REPLY:-smtp.gmail.com}")
         # read -p "SMTP Port? [587]: ";                            SMTP_ARGS+=(--port "${REPLY:-587}") # Removed as it throws an error, and starttls defaults to 587 anyway
@@ -417,10 +416,10 @@ if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     # add proxmoxiac sample lines if they're not already in the file
     if ! grep -q "proxmoxiac" /etc/fstab; then
 cat <<EOF >> "/etc/fstab"
-# ===============================================================================
+# =================================================================================================
 # proxmoxiac
-# Uncomment/add/modify the below lines as needed. Then, ctrl-x to save and exit.
-# ===============================================================================
+# Uncomment/add/modify the below lines as needed. Then, ctrl-x, y, and [Enter] to save and exit.
+# =================================================================================================
 # /cache/storage:/rust1/storage:/rust2/storage /mnt/storage fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
 # /rust1/storage:/rust2/storage                /mnt/rust    fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
 EOF

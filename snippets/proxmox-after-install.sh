@@ -430,15 +430,15 @@ EOF
     # Open fstab in a text editor and ensure it's valid.
     while true; do
         ${EDITOR:-nano} /etc/fstab                                                  # Open fstab in default editor or nano
+        sed -i 's/\r//g' /etc/fstab                                                 # Remove carriage returns (Windows line endings)
         echo "Checking FSTAB mounts for valid syntax..."
         grep -q " fuse.mergerfs " /etc/fstab && apt install -y mergerfs             # Install mergerfs if used in fstab
-        mapfile -t FSTAB_ENTRIES < <(grep -vE "^#|^$|/dev|/proc" /etc/fstab)
-        for FSTAB_ENTRY in "${FSTAB_ENTRIES[@]}"; do
-            MOUNTPOINT=$(echo "$FSTAB_ENTRY" | awk '{print $2}')
+        mapfile -t FSTAB_ENTRIES < <(grep -vE "^#|^$" /etc/fstab | awk '{print $2}' | grep -vE "^(none|swap|/|/proc)$") # Iterate through fstab, exclude comments, and special mountpoints. Return only normal mountpoints.
+        for MOUNTPOINT in "${FSTAB_ENTRIES[@]}"; do
             [ -n "$MOUNTPOINT" ] && mkdir -p "$MOUNTPOINT"                          # Ensure each of the mountpoint directories listed in FSTAB actually exist
         done
         systemctl daemon-reload                                                     # Sync systemd with the modified fstab
-        if mount -a; then break; fi                                                 # Reload the new fstab entries - Automatically break the loop if mount is successful
+        if mount -a; then echo "Nice job, looks great!"; break; fi                  # Reload the new fstab entries - Automatically break the loop if mount is successful
         read -p "Errors found. Press any key to try again..." -n 1 -r -s && echo "" # Pause to let user read errors before reopening editor
     done
 

@@ -291,7 +291,7 @@ read -p "Install Tailscale directly on Proxmox Host? (Y/n): " -n 1 -r && echo ""
 if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     [[ "${TAILSCALE_ARGS[*]}" != *"--non-interactive"* ]]     && TAILSCALE_ARGS+=("--non-interactive") # Tell the install script to run non-interactively
     [[ "${TAILSCALE_ARGS[*]}" != *"--reset"* ]]               && TAILSCALE_ARGS+=("--reset") # Reset unspecified settings to default values
-    #[[ "${TAILSCALE_ARGS[*]}" != *"--auto-update"* ]]         && [ ! -f "/etc/alpine-release" ] && read -p "Enable Automatic Updates? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--auto-update")
+    [[ "${TAILSCALE_ARGS[*]}" != *"--auto-update"* ]]         && read -p "Enable Automatic Updates? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--auto-update")
     [[ "${TAILSCALE_ARGS[*]}" != *"--ssh"* ]]                 && read -p "Enable Tailscale SSH? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--ssh")
     [[ "${TAILSCALE_ARGS[*]}" != *"--advertise-exit-node"* ]] && read -p "Advertise Exit Node? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--advertise-exit-node")
     if [[ "${TAILSCALE_ARGS[*]}" != *"--advertise-routes"* ]]; then
@@ -337,6 +337,12 @@ for p in "${pools[@]}"; do
     if [[ "$(zfs get -H -o value sync "$p")" == "enabled" ]]; then
         read -p "Sync is currently enabled on ZFS Pool '$p'. For consumer SSDs, it's recommended to disable it to improve performance and drastically reduce premature wear. Proceed? (Y/n): " -n 1 -r && echo ""
         [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && zfs set sync=disabled $p
+    fi
+
+    # Offer to disable atime (Access Time) to allow disks to spin down
+    if [[ "$(zfs get -H -o value atime "$p")" == "on" ]]; then
+        read -p "Atime is currently enabled on ZFS Pool '$p'. Disabling it is recommended for performance and to allow HDDs to spin down. Proceed? (Y/n): " -n 1 -r && echo ""
+        [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && zfs set atime=off $p
     fi
 
     # Offer to upgrade pool if it's eligible for an upgrade

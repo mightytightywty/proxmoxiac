@@ -7,7 +7,7 @@ set -e # Exit on Error
 ##############################################################################
 # INSTALL & CONFIGURE TAILSCALE (tested on Debian and Alpine)
 # Usage: setup-tailscale.sh --reset --ssh --advertise-exit-node --advertise-routes=192.168.1.0/24 --auth-key=your-tskey-would-go-here
-# Additional [FLAGS] available for this script only: --non-interactive (will not ask for additional options)
+# Additional [FLAGS] available for this script only: --non-interactive (will not ask for additional options) --auto-update (enables automatic updates)
 # Will automatically add your current subnet to --advertise-routes if added via prompt. You must do it yourself in --non-interactive mode.
 # Will automatically add IP Forwarding and ethtool performance enhancements if --advertise-routes is enabled, even in --non-interactive mode.
 # All normal Tailscale arguments work as expected.
@@ -32,7 +32,7 @@ fi
 TAILSCALE_ARGS=("$@") # Pass all script arguments to Tailscale
 if [[ "${TAILSCALE_ARGS[*]}" != *"--non-interactive"* ]]; then
     [[ "${TAILSCALE_ARGS[*]}" != *"--reset"* ]]               && TAILSCALE_ARGS+=("--reset") # Reset unspecified settings to default values
-    # [[ "${TAILSCALE_ARGS[*]}" != *"--auto-update"* ]]         && [ ! -f "/etc/alpine-release" ] && read -p "Enable Automatic Updates? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--auto-update")
+    [[ "${TAILSCALE_ARGS[*]}" != *"--auto-update"* ]]         && read -p "Enable Automatic Updates? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--auto-update")
     [[ "${TAILSCALE_ARGS[*]}" != *"--ssh"* ]]                 && read -p "Enable Tailscale SSH? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--ssh")
     [[ "${TAILSCALE_ARGS[*]}" != *"--advertise-exit-node"* ]] && read -p "Advertise Exit Node? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--advertise-exit-node")
     if [[ "${TAILSCALE_ARGS[*]}" != *"--advertise-routes"* ]]; then
@@ -93,13 +93,18 @@ if [[ "${TAILSCALE_ARGS[*]}" == *"--advertise-routes"* ]]; then
     # ethtool -k vmbr0 | grep udp-gro-forwarding
 fi
 
-# Create final argument array, excluding --non-interactive (if present)
+# Create final argument array, excluding custom flags (if present):
+# --non-interactive # Custom flag for this script only
+# --auto-update     # This is a native Tailscale flag, but it must be run via the tailscale set command. It will throw errors if added to the tailscale up command.
 for arg in "${TAILSCALE_ARGS[@]}"; do
-    [[ "$arg" != "--non-interactive" ]] && TAILSCALE_FINAL_ARGS+=("$arg")
+    [[ "$arg" != "--non-interactive" && "$arg" != "--auto-update" ]] && TAILSCALE_FINAL_ARGS+=("$arg")
 done
 
 # Configure and bring up Tailscale
 tailscale up "${TAILSCALE_FINAL_ARGS[@]}"
+
+# Enable Auto-Update if it's in the args
+[[ "${TAILSCALE_ARGS[*]}" == *"--auto-update"* ]] && tailscale set --auto-update || true
 
 # Output current tailscale configs
 tailscale status

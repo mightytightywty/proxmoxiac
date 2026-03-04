@@ -7,8 +7,9 @@ set -e # Exit on Error
 cat <<EOF
 ##############################################################################
 # Install & Configure HD-Idle (tested on Proxmox)
-# Usage: setup-hd-idle.sh [idle_seconds]
+# Usage: setup-hd-idle.sh [idle_seconds] [log_enabled]
 # If [idle_seconds] is not passed (or it's not a valid number), the user will be prompted to choose an idle time before spindown.
+# [log_enabled] is optional. Pass 1, true, yes, or --log to enable logging to /var/log/hd-idle.log.
 # This script will find all spinning HDDs, and add them to the config file.
 # It's safe to re-run this script.
 ##############################################################################
@@ -19,11 +20,12 @@ EOF
 # HD_IDLE_OPTS="-i 0 -a sdc -i 600 -a sdd -i 600"
 #
 # Options Used:
-# -i 0 disables default spindown
-# -a sda -i 600 Spindown sda after 600 seconds (10 minutes)
+# -i 0                      Forces all disks to not spin down, ever
+# -a sda -i 600             Spindown sda after 600 seconds (10 minutes)
+# -l /var/log/hd-idle.log   Enable logging (only if 2nd argument is 1)
 
-# Set HDD_IDLE_SECONDS
 HDD_IDLE_SECONDS="$1"
+LOG_ENABLED="$2"
 
 # Validate HDD_IDLE_SECONDS if passed, otherwise prompt
 [[ -n "$HDD_IDLE_SECONDS" && ! "$HDD_IDLE_SECONDS" =~ ^[0-9]+$ ]] && echo "Error: '$HDD_IDLE_SECONDS' is not a valid number." && HDD_IDLE_SECONDS=""
@@ -33,16 +35,20 @@ while [[ -z "$HDD_IDLE_SECONDS" ]]; do
 done
 
 # hdparm and smartmontools help us find all spinning HDDs (likely preinstalled on Proxmox)
-apt update >> /dev/null 2>&1 & apt install -y hdparm smartmontools
+apt update >> /dev/null 2>&1 && apt install -y hdparm smartmontools
 
 # Build the Options String
-HD_IDLE_OPTS="-i 0"
+HD_IDLE_OPTS="-i 0" # Forces all disks to not spin down, ever
+if [[ "${LOG_ENABLED,,}" =~ ^(1|true|yes|on|-l|--log)$ ]]; then
+    HD_IDLE_OPTS="$HD_IDLE_OPTS -l /var/log/hd-idle.log" # Enable logging
+fi
+
 while read -r DISK SIZE; do
-    smartctl -i "/dev/$DISK" 2>/dev/null | grep -qi "rpm" && HD_IDLE_OPTS="$HD_IDLE_OPTS -a $DISK -i $HDD_IDLE_SECONDS" || true
+    smartctl -i "/dev/$DISK" 2>/dev/null | grep -qi "rpm" && HD_IDLE_OPTS="$HD_IDLE_OPTS -a /dev/$DISK -i $HDD_IDLE_SECONDS" || true
 done < <(lsblk -ndo NAME,SIZE,TYPE | awk '$3=="disk"{print $1, $2}')
 
 # if No spinning disks were found then
-if [ "$HD_IDLE_OPTS" = "-i 0" ]; then
+if [[ "$HD_IDLE_OPTS" != *"-a"* ]]; then
     echo "No drives found matching criteria. Exiting."
     echo "Debug Info - All sd disks found:"
     lsblk -d -n -o NAME,SIZE | grep "^sd"

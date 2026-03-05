@@ -73,6 +73,10 @@ else
     BACKUP=${BACKUP:-0} # Default Backup to 0
 fi
 
+# Set permissions on the host path
+chown -R 100000:10000 "$HOST_PATH" # LXC's root user sees the files as owned by root (because 100000 on host = 0 in container) and can write without permission errors
+chmod -R 2775 "$HOST_PATH"
+
 # If there's already a mountpoint pointing to HOST_PATH in the CTX_ID.conf file, remove the mountpoint
 ESCAPED_HOST_PATH=$(printf '%s\n' "$HOST_PATH" | sed 's/[].[^$\\*+?()|{}]/\\&/g')
 EXISTING_MP=$(grep -E "^mp[0-9]+: ([^,]*=)?$ESCAPED_HOST_PATH," "/etc/pve/lxc/${CTX_ID}.conf" | cut -d':' -f1 || true)

@@ -166,7 +166,7 @@ Automates the installation and configuration of `hd-idle` to spin down mechanica
     ```bash
     ./setup-hd-idle.sh [seconds]
     ```
-<!-- DISABLED FOR NOW, as it seems to be disabling drive spindown
+
 ### `setup-powertop-autoaspm.sh`
 Optimizes power consumption on the Proxmox host.
 *   **Features**: Installs `powertop` and configures `AutoASPM` (Active State Power Management) to reduce energy usage, particularly useful for home labs.
@@ -174,7 +174,6 @@ Optimizes power consumption on the Proxmox host.
     ```bash
     ./setup-hd-idle.sh [seconds]
     ```
--->
 
 ### Generated Scripts
 *   **`hostname-host-config.sh`**: Stores the configuration variables selected during the installation process.

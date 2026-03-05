@@ -4,19 +4,6 @@ set -e # Exit on Error
 # Ensure the script is run as root
 [ "$EUID" -ne 0 ] && echo "Please run as root (sudo)." && exit 1
 
-echo "===================================================================================="
-echo "       Proxmox Helper Script Setup"
-echo "       https://community-scripts.github.io/ProxmoxVE/scripts?id=post-pve-install"
-echo "===================================================================================="
-if read -p "Run Proxmox Helper Script 'PVE Post Install' (recommended) ? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-    # Proxmox Helper Script - PVE Post Install
-    bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/pve/post-pve-install.sh)"
-fi
-
-echo "===================================================================================="
-echo "       Proxmoxiac After Install Setup Script"
-echo "===================================================================================="
-
 # Helper Function for Prompts
 prompt() {
     local var_name="$1" prompt_text="$2" default_val="$3" required="$4" input=""
@@ -47,18 +34,31 @@ add_to_crontab() {
     (crontab -l 2>/dev/null | grep -Fv "${2:-$1}" || true; echo "$1") | crontab -
 }
 
+
+echo "===================================================================================="
+echo "       Proxmox Helper Script Setup"
+echo "       https://community-scripts.github.io/ProxmoxVE/scripts?id=post-pve-install"
+echo "===================================================================================="
+if read -p "Run Proxmox Helper Script 'PVE Post Install' (recommended) ? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    # Proxmox Helper Script - PVE Post Install
+    bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/pve/post-pve-install.sh)"
+fi
+
+echo ""
+echo "===================================================================================="
+echo "       Proxmoxiac After Install Setup Script"
+echo "===================================================================================="
 # Update Proxmox
-read -p "Update Proxmox? (Y/n): " -n 1 -r && echo ""
-if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+if read -p "Update Proxmox? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     # Upgrade Proxmox
     apt update && apt upgrade -y && apt autoremove -y && apt autoclean -y
 fi
 
 # Install Dependencies
 apt install -y jq git unzip
-export PATH="$PATH:/root/.local/bin"
 
 # Setup Infrastructure-As-Code Repository
+echo ""
 echo "===================================================================================="
 echo "       Infrastructure-As-Code Repository Setup"
 echo "===================================================================================="
@@ -121,6 +121,7 @@ while true; do
     fi
 done
 
+echo ""
 echo "===================================================================================="
 echo "       Public SSH Key Setup"
 echo "===================================================================================="
@@ -164,6 +165,7 @@ if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     done
 fi
 
+echo ""
 echo "===================================================================================="
 echo "       Notifications Setup"
 echo "===================================================================================="
@@ -217,6 +219,7 @@ if [ -f /etc/pve/notifications.cfg ] && grep -q "^smtp: SMTP-Alerts" /etc/pve/no
     fi
 fi
 
+echo ""
 echo "===================================================================================="
 echo "       Crontab Setup"
 echo "===================================================================================="
@@ -254,11 +257,11 @@ qm list | awk '$3 == "running" {print $1}' | while read vm; do qm guest exec ${v
 EOF
 fi
 
-# Permanently add "/root/.local/bin" to PATH, but only if it's not already there.
-add_line_if_missing "/root/.bashrc" 'export PATH="$PATH:/root/.local/bin"'
-
-# Add PATH to the TOP of crontab (only if it's not already there)
-(echo "PATH=$PATH"; crontab -l 2>/dev/null | grep -Fv "PATH=$PATH" || true) | crontab -
+# Add "/root/.local/bin" to PATH
+[[ ":$PATH:" != *":/root/.local/bin:"* ]] && export PATH="$PATH:/root/.local/bin"                           # Add to current variable if it's not already there
+(echo "PATH=$PATH"; crontab -l 2>/dev/null | grep -v "^PATH=" || true) | crontab -                          # Add PATH to the TOP of crontab, removing any existing PATH definitions
+sed -i '/export PATH=/d' "/root/.bashrc"                                                                    # Remove existing PATH export to prevent duplicates
+echo '[[ ":$PATH:" != *":/root/.local/bin:"* ]] && export PATH="$PATH:/root/.local/bin"' >> "/root/.bashrc" # Make it persist on reboot
 
 # Schedule cron jobs
 add_to_crontab "0 * * * * /root/infrastructure/snippets/$(hostname)-cron-hourly.sh"  # Hourly - Every hour, on the hour
@@ -269,54 +272,7 @@ echo "Successfully added cron job for /root/infrastructure/snippets/$(hostname)-
 # Enable built-in job to run fstrim weekly on Proxmox host too. It should be enabled by default, but it doesn't hurt to double-check.
 systemctl enable fstrim.timer
 
-echo "===================================================================================="
-echo "       Install Software"
-echo "===================================================================================="
-
-# Setup HD-Idle
-read -p "Install HD-Idle Tool to auto-spin down hard drives when idle? (Y/n): " -n 1 -r && echo ""
-if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-    [[ -n "$HDD_IDLE_SECONDS" && ! "$HDD_IDLE_SECONDS" =~ ^[0-9]+$ ]] && echo "Error: '$HDD_IDLE_SECONDS' is not a valid number." && HDD_IDLE_SECONDS=""
-    while [[ -z "$HDD_IDLE_SECONDS" ]]; do
-        read -r -p "How long should the drives be idle before spinning down? (in seconds) [600]: " HDD_IDLE_SECONDS && HDD_IDLE_SECONDS="${HDD_IDLE_SECONDS:-600}"
-        [[ ! "$HDD_IDLE_SECONDS" =~ ^[0-9]+$ ]] && echo "Error: Please enter a valid integer." && HDD_IDLE_SECONDS=""
-    done
-    add_line_if_missing $CONFIG_FILE "HDD_IDLE_SECONDS=\"$HDD_IDLE_SECONDS\""
-    /bin/bash /root/infrastructure/snippets/setup-hd-idle.sh "$HDD_IDLE_SECONDS"
-fi
-
-# Setup Tailscale
-read -p "Install Tailscale directly on Proxmox Host? (Y/n): " -n 1 -r && echo ""
-if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-    [[ "${TAILSCALE_ARGS[*]}" != *"--non-interactive"* ]]     && TAILSCALE_ARGS+=("--non-interactive") # Tell the install script to run non-interactively
-    [[ "${TAILSCALE_ARGS[*]}" != *"--reset"* ]]               && TAILSCALE_ARGS+=("--reset") # Reset unspecified settings to default values
-    [[ "${TAILSCALE_ARGS[*]}" != *"--auto-update"* ]]         && read -p "Enable Automatic Updates? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--auto-update")
-    [[ "${TAILSCALE_ARGS[*]}" != *"--ssh"* ]]                 && read -p "Enable Tailscale SSH? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--ssh")
-    [[ "${TAILSCALE_ARGS[*]}" != *"--advertise-exit-node"* ]] && read -p "Advertise Exit Node? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--advertise-exit-node")
-    if [[ "${TAILSCALE_ARGS[*]}" != *"--advertise-routes"* ]]; then
-        read -p "Advertise Routes? (Y/n): " -n 1 -r && echo ""
-        if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-            DEFAULT_ROUTE=$(ip route | awk -v d="$(ip route | awk '/^default/ {print $5; exit}')" '$3==d && /scope link/ {print $1; exit}')
-            [[ -n "$DEFAULT_ROUTE" ]] && TAILSCALE_ARGS+=("--advertise-routes=$DEFAULT_ROUTE")
-        fi
-    fi
-    [[ "${TAILSCALE_ARGS[*]}" != *"--accept-routes"* ]]       && read -p "Accept Routes? (This is NOT recommended - it can cause routing conflicts with Proxmox) (y/N): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ ]] && TAILSCALE_ARGS+=("--accept-routes")
-
-    # Save TAILSCALE_ARGS to CONFIG_FILE, intentionally leaving out --auth-key
-    for TAILSCALE_ARG in "${TAILSCALE_ARGS[@]}"; do add_line_if_missing "$CONFIG_FILE" "TAILSCALE_ARGS+=(\"$TAILSCALE_ARG\")"; done
-
-    [[ "${TAILSCALE_ARGS[*]}" != *"--auth-key"* ]]            && read -p "Do you want to use a Tailscale Auth Key? (y/N): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ ]] && read -p "Enter your Tailscale Auth Key: " TAILSCALE_AUTH_KEY && TAILSCALE_ARGS+=("--auth-key=${TAILSCALE_AUTH_KEY:-}")
-
-    /bin/bash /root/infrastructure/snippets/setup-tailscale.sh "${TAILSCALE_ARGS[@]}"
-fi
-
-# DISABLED FOR NOW, as it seems to be preventing drive spindown
-# Setup Powertop and AutoASPM for Power Usage Optimization
-# read -p "Install Powertop and AutoASPM for Power Usage Optimization? (Y/n): " -n 1 -r && echo ""
-# if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-#     /bin/bash /root/infrastructure/snippets/setup-powertop-autoaspm.sh
-# fi
-
+echo ""
 echo "===================================================================================="
 echo "       ZFS Setup"
 echo "===================================================================================="
@@ -352,11 +308,16 @@ for p in "${pools[@]}"; do
     [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && zpool upgrade "$p"
 done
 
+# OpenZFS 2.4+ writes a timestamp to the transaction database every 10 minutes by default. Change that to 1 week to prevent unnecessary drive spinups?
+read -p "OpenZFS 2.4+ writes a timestamp to the transaction database every 10 minutes by default. Change that to 1 week to prevent unnecessary drive spinups? (Y/n): " -n 1 -r && echo ""
+[[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && add_line_if_missing "/etc/modprobe.d/zfs.conf" "options zfs spa_note_txg_time=604800" # in seconds: 86400=1 day, 604800=1 week, etc.
+
 # ZFS - Ensure everything is mounted
 zfs mount -a
 
 echo "ZFS import and upgrade process complete."
 
+echo ""
 echo "===================================================================================="
 echo "       Storage Setup"
 echo "===================================================================================="
@@ -403,6 +364,7 @@ while true; do
     break
 done
 
+echo ""
 echo "===================================================================================="
 echo "       FSTAB Setup"
 echo "===================================================================================="
@@ -449,6 +411,7 @@ EOF
     # df -h #verify the mount points
 fi
 
+echo ""
 echo "===================================================================================="
 echo "       Non-Root User and Group Permissions Setup"
 echo "===================================================================================="
@@ -497,6 +460,51 @@ for FSTAB_ENTRY in "${FSTAB_ENTRIES[@]}"; do
     fi
 done
 
+echo ""
+echo "===================================================================================="
+echo "       Install Software"
+echo "===================================================================================="
+
+# Offer to install Tailscale, unless it's already installed
+if ! command -v tailscale &> /dev/null && read -p "Install Tailscale directly on Proxmox Host? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    [[ "${TAILSCALE_ARGS[*]}" != *"--non-interactive"* ]]     && TAILSCALE_ARGS+=("--non-interactive") # Tell the install script to run non-interactively
+    [[ "${TAILSCALE_ARGS[*]}" != *"--reset"* ]]               && TAILSCALE_ARGS+=("--reset") # Reset unspecified settings to default values
+    [[ "${TAILSCALE_ARGS[*]}" != *"--auto-update"* ]]         && read -p "Enable Automatic Updates? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--auto-update")
+    [[ "${TAILSCALE_ARGS[*]}" != *"--ssh"* ]]                 && read -p "Enable Tailscale SSH? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--ssh")
+    [[ "${TAILSCALE_ARGS[*]}" != *"--advertise-exit-node"* ]] && read -p "Advertise Exit Node? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && TAILSCALE_ARGS+=("--advertise-exit-node")
+    [[ "${TAILSCALE_ARGS[*]}" != *"--accept-routes"* ]]       && read -p "Accept Routes? (This is NOT recommended - it can cause routing conflicts with Proxmox) (y/N): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ ]] && TAILSCALE_ARGS+=("--accept-routes")
+    if [[ "${TAILSCALE_ARGS[*]}" != *"--advertise-routes"* ]]; then
+        read -p "Advertise Routes? (Y/n): " -n 1 -r && echo ""
+        if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+            DEFAULT_ROUTE=$(ip route | awk -v d="$(ip route | awk '/^default/ {print $5; exit}')" '$3==d && /scope link/ {print $1; exit}')
+            [[ -n "$DEFAULT_ROUTE" ]] && TAILSCALE_ARGS+=("--advertise-routes=$DEFAULT_ROUTE")
+        fi
+    fi
+
+    # Save TAILSCALE_ARGS to CONFIG_FILE, intentionally leaving out --auth-key
+    for TAILSCALE_ARG in "${TAILSCALE_ARGS[@]}"; do add_line_if_missing "$CONFIG_FILE" "TAILSCALE_ARGS+=(\"$TAILSCALE_ARG\")"; done
+    [[ "${TAILSCALE_ARGS[*]}" != *"--auth-key"* ]]            && read -p "Do you want to use a Tailscale Auth Key? (y/N): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ ]] && read -p "Enter your Tailscale Auth Key: " TAILSCALE_AUTH_KEY && [ -n "$TAILSCALE_AUTH_KEY" ] && TAILSCALE_ARGS+=("--auth-key=${TAILSCALE_AUTH_KEY}")
+
+    /bin/bash /root/infrastructure/snippets/setup-tailscale.sh "${TAILSCALE_ARGS[@]}"
+fi
+
+# Setup HD-Idle, unless it's already installed
+if ! command -v hd-idle &> /dev/null && read -p "Install HD-Idle Tool to auto-spin down hard drives when idle? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    [[ -n "$HDD_IDLE_SECONDS" && ! "$HDD_IDLE_SECONDS" =~ ^[0-9]+$ ]] && echo "Error: '$HDD_IDLE_SECONDS' is not a valid number." && HDD_IDLE_SECONDS=""
+    while [[ -z "$HDD_IDLE_SECONDS" ]]; do
+        read -r -p "How long should the drives be idle before spinning down? (in seconds) [600]: " HDD_IDLE_SECONDS && HDD_IDLE_SECONDS="${HDD_IDLE_SECONDS:-600}"
+        [[ ! "$HDD_IDLE_SECONDS" =~ ^[0-9]+$ ]] && echo "Error: Please enter a valid integer." && HDD_IDLE_SECONDS=""
+    done
+    add_line_if_missing $CONFIG_FILE "HDD_IDLE_SECONDS=\"$HDD_IDLE_SECONDS\""
+    /bin/bash /root/infrastructure/snippets/setup-hd-idle.sh "$HDD_IDLE_SECONDS"
+fi
+
+# Setup Powertop and AutoASPM for Power Usage Optimization, unless it's already installed
+if ! command -v powertop &> /dev/null && read -p "Install Powertop and AutoASPM for Power Usage Optimization? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    /bin/bash /root/infrastructure/snippets/setup-powertop-autoaspm.sh
+fi
+
+echo ""
 echo "===================================================================================="
 echo "       Commit changes to Git"
 echo "===================================================================================="
@@ -508,6 +516,7 @@ if [ -d "/root/infrastructure/.git" ]; then
     git -C "/root/infrastructure" push origin main || echo "Warning: Could not push changes to remote repository."
 fi
 
+echo ""
 echo "===================================================================================="
 echo "       Congrats, you're all set!"
 echo "===================================================================================="

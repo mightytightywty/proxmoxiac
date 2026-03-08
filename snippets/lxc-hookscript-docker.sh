@@ -68,21 +68,24 @@ case "$phase" in
             for LXC_SERVICE_PATH in "${LXC_SERVICE_PATHS[@]}"; do
                 LXC_SERVICE_PATH="${LXC_SERVICE_PATH%$'\r'}" # Remove carriage return sometimes added by pct exec
                 SERVICE_NAME=$(basename "$LXC_SERVICE_PATH")
-                HOST_SERVICE_PATH="/root/infrastructure/docker/$SERVICE_NAME"
+
+                # Strip leading numbers and hyphen (e.g. 00-authentik -> authentik) to find the source config
+                CLEAN_SERVICE_NAME=$(echo "$SERVICE_NAME" | sed -E 's/^[0-9]+-//')
+                HOST_SERVICE_PATH="/root/infrastructure/docker/$CLEAN_SERVICE_NAME"
 
                 # Sync latest docker config from host to LXC, overwriting config files from IAC, without deleting extra (appdata) files found in LXC
                 if [ ! -d "$HOST_SERVICE_PATH" ]; then
                     echo "Can't find docker config on proxmox host at $HOST_SERVICE_PATH. Docker config on LXC at $LXC_SERVICE_PATH will not be updated."
                 else
-                    echo "Syncing $SERVICE_NAME config to LXC $vmid..."
+                    echo "Syncing $CLEAN_SERVICE_NAME config to LXC $vmid ($SERVICE_NAME)..."
                     # Sync via tar (recommended for few, smaller files)
-                    tar -chf - -C "/root/infrastructure/docker/" "$SERVICE_NAME" | pct exec "$vmid" -- tar -xf - -C "/opt/docker/" --no-same-owner
+                    tar -chf - -C "$HOST_SERVICE_PATH" . | pct exec "$vmid" -- tar -xf - -C "$LXC_SERVICE_PATH" --no-same-owner
 
                     # Sync via rsync (recommended for many files)
-                    # MOUNTPOINT=$(pct mount "$vmid") && rsync -av "/root/infrastructure/docker/$SERVICE_NAME/" "$MOUNTPOINT/opt/docker/$SERVICE_NAME/" && pct unmount "$vmid"
+                    # MOUNTPOINT=$(pct mount "$vmid") && rsync -av "$HOST_SERVICE_PATH/" "$MOUNTPOINT$LXC_SERVICE_PATH/" && pct unmount "$vmid"
 
                     # Sync via pct push
-                    # pct push "$vmid" "/root/infrastructure/docker/$SERVICE_NAME" "/opt/docker/"
+                    # pct push "$vmid" "$HOST_SERVICE_PATH" "/opt/docker/"
                 fi
 
                 # Start docker stack on LXC

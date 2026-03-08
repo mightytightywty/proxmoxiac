@@ -90,7 +90,8 @@ case "$phase" in
 
                 # Start docker stack on LXC
                 echo "Starting $SERVICE_NAME..."
-                echo "Docker Output: $(pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && $ENV_EXPORTS docker compose up -d --remove-orphans" 2>&1)"
+                echo "Docker Output:"
+                echo "$(pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && $ENV_EXPORTS docker compose up -d --remove-orphans" 2>&1)"
             done
         fi
 

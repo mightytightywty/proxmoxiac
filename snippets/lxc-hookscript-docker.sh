@@ -104,6 +104,9 @@ case "$phase" in
         # Exit without error if /opt/docker doesn't exist
         pct exec "$vmid" -- [ -d "/opt/docker" ] || exit 0
 
+        # Fetch Environment Variables that start with "VMID_"
+        ENV_EXPORTS=$(get_secrets "${vmid}_") || echo "WARNING: Could not retrieve secrets from Bitwarden Secrets Manager." >&2
+
         # Stop all services
         echo "Stopping services in reverse alphabetical order."
         mapfile -t LXC_SERVICE_PATHS < <(pct exec "$vmid" -- find -L "/opt/docker" -mindepth 1 -maxdepth 1 -type d | sort -r)
@@ -113,7 +116,7 @@ case "$phase" in
                 LXC_SERVICE_PATH="${LXC_SERVICE_PATH%$'\r'}" # Remove carriage return sometimes added by pct exec
                 SERVICE_NAME=$(basename "$LXC_SERVICE_PATH")
                  echo "Stopping $SERVICE_NAME..."
-                 pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && docker compose down"
+                 pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && $ENV_EXPORTS docker compose down"
             done
         fi
         

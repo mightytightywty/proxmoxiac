@@ -90,9 +90,13 @@ case "$phase" in
 
                 # Start docker stack on LXC
                 echo "Starting $SERVICE_NAME..."
-                pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && $ENV_EXPORTS docker compose pull"
-                echo "Docker Output:"
-                echo "$(pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && $ENV_EXPORTS docker compose up -d --remove-orphans" 2>&1)"
+                if pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && ([ -f docker-compose.yml ] || [ -f docker-compose.yaml ])"; then
+                    pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && $ENV_EXPORTS docker compose pull"
+                    echo "Docker Output:"
+                    echo "$(pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && $ENV_EXPORTS docker compose up -d --remove-orphans" 2>&1)"
+                else
+                    echo "Skipping $SERVICE_NAME: No docker-compose file found."
+                fi
             done
         fi
 
@@ -117,7 +121,7 @@ case "$phase" in
                 LXC_SERVICE_PATH="${LXC_SERVICE_PATH%$'\r'}" # Remove carriage return sometimes added by pct exec
                 SERVICE_NAME=$(basename "$LXC_SERVICE_PATH")
                  echo "Stopping $SERVICE_NAME..."
-                 pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && $ENV_EXPORTS docker compose down"
+                 pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && if [ -f docker-compose.yml ] || [ -f docker-compose.yaml ]; then $ENV_EXPORTS docker compose down; else echo \"Skipping $SERVICE_NAME: No docker-compose file found.\"; fi"
             done
         fi
         

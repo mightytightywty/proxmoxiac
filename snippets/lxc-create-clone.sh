@@ -134,10 +134,10 @@ declare -A mp_configs                                                           
 while IFS=':' read -r key val; do
     [[ "$key" =~ ^mp[0-9]+$ && "$val" =~ ^[[:space:]]*/dev/zvol/ ]] && \
         mp_configs["$key"]="${val#"${val%%[![:space:]]*}"}";
-done < <(pct config "$1")                                                                                        # Extract any Zvol mpX configurations (starting with /dev/zvol/)
-for key in "${!mp_configs[@]}"; do pct set "$1" --delete "$key"; done                                            # Temporarily remove the identified mount points as they are not able to be cloned
+done < <(pct config "$TEMPLATE_CTX_ID")                                                                          # Extract any Zvol mpX configurations (starting with /dev/zvol/)
+for key in "${!mp_configs[@]}"; do pct set "$TEMPLATE_CTX_ID" --delete "$key"; done                              # Temporarily remove the identified mount points as they are not able to be cloned
 pct clone $TEMPLATE_CTX_ID $CLONE_CTX_ID --hostname $CLONE_HOSTNAME                                              # Create a Clone of the Template LXC
-for key in "${!mp_configs[@]}"; do pct set "$1" --"$key" "${mp_configs[$key]}"; done                             # Re-add the saved /dev/zvol/ mount points to the Template LXC
+for key in "${!mp_configs[@]}"; do pct set "$TEMPLATE_CTX_ID" --"$key" "${mp_configs[$key]}"; done               # Re-add the saved /dev/zvol/ mount points to the Template LXC
 pct set $CLONE_CTX_ID --mp0 "/dev/zvol/$CLONE_DOCKER_DISK,mp=/var/lib/docker,backup=1"                           # Add the /var/lib/docker Zvol to the Clone LXC
 pct set $CLONE_CTX_ID --net0 "name=eth0,bridge=vmbr0,hwaddr=$CLONE_MAC,ip=dhcp,type=veth"                        # Set the MAC address - don't forget to add the Static DHCP Mapping on your router
 [ -n "$CTX_CORES" ] && pct set $CLONE_CTX_ID --cores "$CTX_CORES"                                                # Set the number of CPU cores

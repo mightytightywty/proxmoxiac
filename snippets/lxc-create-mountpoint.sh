@@ -12,7 +12,7 @@ cat <<EOF
 Usage: $0 --vmid <id> --hostpath <path> --lxcpath <path> [OPTIONS]
 
 Required:
-  --vmid <id>            LXC ID to add the service to
+  --vmid <id>            LXC ID to add the mountpoint to
   --hostpath <path>      Path on Host or ZFS dataset name (examples below)
                             /mnt/storage
                             flash/appdata-service-name
@@ -21,8 +21,11 @@ Required:
                             /opt/docker/service-name
 
 Optional:
-  --backup <1 | 0>       Set the backup flag
-                            defaults to 1 for ZFS Datasets or 0 for standard paths
+  --acl <0|1>            Enable ACLs? (default: null [system default])
+  --backup <0|1>         Set the backup flag (defaults to 1 for ZFS Datasets or 0 for standard paths)
+  --readonly <0|1>       Set the read-only flag (default: 0 [full-access])
+                            0=full-access, 1=read-only
+  --replicate <0|1>      Replication Enabled? (default: 1 [enabled])
   --help, -h             Show this help message
 EOF
 exit 1
@@ -33,10 +36,13 @@ exit 1
 #######################################################
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --vmid)         CTX_ID="$2";    [[ -z "$CTX_ID" ]] && usage;    shift 2 ;;
-    --hostpath)     HOST_PATH="$2"; [[ -z "$HOST_PATH" ]] && usage; shift 2 ;;
-    --lxcpath)      LXC_PATH="$2";  [[ -z "$LXC_PATH" ]] && usage;  shift 2 ;;
-    --backup)       BACKUP="$2";    [[ -z "$BACKUP" ]] && usage;    shift 2 ;;
+    --vmid)      CTX_ID="$2";    [[ -z "$CTX_ID" ]]    && usage; shift 2 ;;
+    --hostpath)  HOST_PATH="$2"; [[ -z "$HOST_PATH" ]] && usage; shift 2 ;;
+    --lxcpath)   LXC_PATH="$2";  [[ -z "$LXC_PATH" ]]  && usage; shift 2 ;;
+    --acl)       ACL="$2";       [[ -z "$ACL" ]]       && usage; shift 2 ;;
+    --backup)    BACKUP="$2";    [[ -z "$BACKUP" ]]    && usage; shift 2 ;;
+    --readonly)  READONLY="$2";  [[ -z "$READONLY" ]]  && usage; shift 2 ;;
+    --replicate) REPLICATE="$2"; [[ -z "$REPLICATE" ]] && usage; shift 2 ;;
     --help|-h)      usage ;;
     *) echo "Unknown parameter: $1"; usage ;; # Handle unexpected flags
   esac
@@ -65,12 +71,12 @@ if [[ ! "$HOST_PATH" =~ ^/ ]]; then
     [ -z "$HOST_PATH" ] && echo "Error: Could not determine mountpoint for ZFS dataset." && exit 1
     [[ "$HOST_PATH" == "legacy" || "$HOST_PATH" == "none" ]] && echo "Error: ZFS dataset $HOST_PATH does not have a valid mountpoint." && exit 1
 
-    BACKUP=${BACKUP:-1} # Default Backup to 1
+    BACKUP=${BACKUP:-1} # Default Backup to 1 if not set
 else
     # If it's a standard path, ensure it exists on the host
     [ ! -d "$HOST_PATH" ] && echo "Error: Host path $HOST_PATH does not exist." && usage
 
-    BACKUP=${BACKUP:-0} # Default Backup to 0
+    BACKUP=${BACKUP:-0} # Default Backup to 0 if not set
 fi
 
 # Set permissions on the host path
@@ -88,9 +94,12 @@ fi
 #######################################################
 # Add the dataset to the container
 #######################################################
-MP_ID=0; while grep -q "^mp$MP_ID:" "/etc/pve/lxc/${CTX_ID}.conf"; do MP_ID=$((MP_ID+1)); done # Iterate to find next free mp index
-pct set "$CTX_ID" -mp"$MP_ID" "$HOST_PATH,mp=$LXC_PATH,backup=$BACKUP" # Apply mountpoint with backup enabled
-#pct set $CTX_ID --mp1 "/mnt/storage,mp=/mnt/storage,backup=0"                       # Mount /mnt/storage (if required)
+MP_ID=0; while grep -q "^mp$MP_ID:" "/etc/pve/lxc/${CTX_ID}.conf"; do MP_ID=$((MP_ID+1)); done  # Iterate to find next free mp index
+MP_OPTS="$HOST_PATH,mp=$LXC_PATH,backup=$BACKUP"                                                # Baseline mountpoint options
+[ -n "$ACL" ] && MP_OPTS="${MP_OPTS},acl=$ACL"                                                  # Add ACL if applicable
+[ -n "$READONLY" ] && MP_OPTS="${MP_OPTS},ro=$READONLY"                                         # Add Read-Only if applicable
+[ -n "$REPLICATE" ] && MP_OPTS="${MP_OPTS},replicate=$REPLICATE"                                # Add Replicate if applicable
+pct set "$CTX_ID" --mp"$MP_ID" "$MP_OPTS"                                                       # Apply mountpoint
 echo "Successfully added $HOST_PATH to CT $CTX_ID at $LXC_PATH as mp$MP_ID with backup=$BACKUP" # Confirm completion
 
 # Warn if the container is running, as mountpoints usually require a reboot to attach

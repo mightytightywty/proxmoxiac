@@ -72,6 +72,16 @@ CLONE_DOCKER_DISK="$ZPOOL/subvol-$CLONE_CTX_ID-docker"
 # Template container must exist
 pct config $TEMPLATE_CTX_ID >/dev/null 2>&1 || { echo "Error: Template LXC $TEMPLATE_CTX_ID not found."; exit 1; }
 
+# Ensure --mp0 on TEMPLATE_CTX_ID looks like this: "/dev/zvol/$TEMPLATE_DOCKER_DISK,mp=/var/lib/docker,backup=1" and exit if not
+# This would indicate it was not created by proxmoxiac, and thus is not supported.
+TEMPLATE_CONFIG=$(pct config "$TEMPLATE_CTX_ID")
+if ! echo "$TEMPLATE_CONFIG" | grep -qE "^mp0: /dev/zvol/$TEMPLATE_DOCKER_DISK,mp=/var/lib/docker,backup=1"; then
+    echo "Error: Template LXC $TEMPLATE_CTX_ID does not have the expected mp0 configuration."
+    echo "Expected: mp0: /dev/zvol/$TEMPLATE_DOCKER_DISK,mp=/var/lib/docker,backup=1"
+    echo "Found: $(echo "$TEMPLATE_CONFIG" | grep "^mp0:" || echo "none")"
+    exit 1
+fi
+
 
 #######################################################
 # Offer to delete clone lxc if it already exists
@@ -150,10 +160,12 @@ fi
 # Create the clone
 #######################################################
 pct stop "$TEMPLATE_CTX_ID" &>/dev/null || true                                                                  # Silently stop the Template LXC if it's started
+pct set $TEMPLATE_CTX_ID --delete mp0                                                                            # Temporarily remove mount point 0 from the template lxc
 zfs list -t snapshot "$TEMPLATE_DOCKER_DISK@clean" >/dev/null 2>&1 || zfs snapshot "$TEMPLATE_DOCKER_DISK@clean" # If it doesn't already exist, Snapshot the docker disk so it can be cloned
 zfs clone "$TEMPLATE_DOCKER_DISK@clean" $CLONE_DOCKER_DISK                                                       # Clone the Template's docker disk (/var/lib/docker in the container)
-pct clone $TEMPLATE_CTX_ID $CLONE_CTX_ID --hostname $CLONE_HOSTNAME                                              # Clone the Template LXC into a new Clone LXC
-pct set $CLONE_CTX_ID --mp0 "/dev/zvol/$CLONE_DOCKER_DISK,mp=/var/lib/docker,backup=1"                           # Add the /var/lib/docker Zvol
+pct clone $TEMPLATE_CTX_ID $CLONE_CTX_ID                                                                         # Create a clone of the template lxc
+pct set $TEMPLATE_CTX_ID --mp0 "/dev/zvol/$TEMPLATE_DOCKER_DISK,mp=/var/lib/docker,backup=1"                     # Restore the original mount point to the template lxc
+pct set $CLONE_CTX_ID --mp0 "/dev/zvol/$CLONE_DOCKER_DISK,mp=/var/lib/docker,backup=1"                           # Add the /var/lib/docker Zvol to the clone lxc
 pct set $CLONE_CTX_ID --net0 "name=eth0,bridge=vmbr0,hwaddr=$CLONE_MAC,ip=dhcp,type=veth"                        # Set the MAC address - don't forget to add the Static DHCP Mapping on your router
 [ -n "$CTX_CORES" ] && pct set $CLONE_CTX_ID --cores "$CTX_CORES"                                                # Set the number of CPU cores
 [ -n "$CTX_MEMORY" ] && pct set $CLONE_CTX_ID --memory "$CTX_MEMORY"                                             # Set the RAM in MB

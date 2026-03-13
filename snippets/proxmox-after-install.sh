@@ -384,7 +384,7 @@ cat <<EOF >> "/etc/fstab"
 # Uncomment/add/modify the below lines as needed. Then, ctrl-x, y, and [Enter] to save and exit.
 # =================================================================================================
 # /flash/storage                               /mnt/flash   fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
-# /tank/storage:/tank2/storage                 /mnt/tank    fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
+# /tank1/storage:/tank2/storage                /mnt/tank    fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
 # /flash/storage:/tank1/storage:/tank2/storage /mnt/storage fuse.mergerfs defaults,nonempty,allow_other,use_ino,cache.files=off,moveonenospc=true,dropcacheonclose=true,minfreespace=10G,fsname=mergerfs,category.create=ff 0 0
 EOF
     fi

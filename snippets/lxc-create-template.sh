@@ -29,7 +29,7 @@ Options:
   --memory <mb>                Memory in MB (default: 1024)
   --swap <mb>                  Swap in MB (default: 512)
   --storage <id>               Target Proxmox Storage ID (default: flash) <flash | local>
-  --password <pwd>             Root password. If not defined (recommended), root account is locked from login via SSH, etc.
+  --password <pwd>             Root password. If not defined (recommended), root account is locked from login via SSH, etc. (default: blank)
   --map_host_tun <0|1>         Grants the container read and write permissions for the host TUN character device. Useful for VPNs, Tailscale, etc. (default: 0)
   --zvol_for_docker <path>     ZVol for Docker (default: flash/basevol-<vmid>-docker)
                                   Will be formatted in ext4, to be used for /var/lib/docker within each LXC
@@ -100,7 +100,7 @@ fi
 
 # --- Check for existing template and dependents ---
 if [ -f "/etc/pve/lxc/${CTX_ID}.conf" ] || zfs list "$ZVOL_DOCKER" &>/dev/null; then
-    echo "Template LXC $CTX_ID or Zvol $ZVOL_DOCKER already exists."
+    echo "Destination LXC $CTX_ID or Zvol $ZVOL_DOCKER already exists."
 
     # Find dependent clones (ZFS volumes that originated from the template Zvol)
     # Filter for volumes where the origin matches the template Zvol followed by '@'
@@ -109,9 +109,9 @@ if [ -f "/etc/pve/lxc/${CTX_ID}.conf" ] || zfs list "$ZVOL_DOCKER" &>/dev/null; 
     if [ -n "$DEPENDENT_VOLUMES" ]; then
         echo "WARNING: The following ZFS volumes are clones of this template:"
         echo "$DEPENDENT_VOLUMES"
-        echo "Proceeding will DESTROY the template AND ALL CHILD LXCs associated with these volumes."
+        echo "Proceeding will DESTROY this template AND ALL CHILD LXCs associated with these volumes."
     else
-        echo "Proceeding will destroy and re-create the template."
+        echo "Proceeding will DESTROY and re-create this template."
     fi
 
     read -p "Do you want to continue? (y/N): " -n 1 -r

@@ -149,14 +149,15 @@ fi
 #######################################################
 # Create the clone
 #######################################################
-pct stop "$TEMPLATE_CTX_ID" &>/dev/null                                                   # Silently stop the Template LXC if it's started
-zfs clone "$TEMPLATE_DOCKER_DISK@clean" $CLONE_DOCKER_DISK                                # Clone the Template's docker disk (/var/lib/docker in the container)
-pct clone $TEMPLATE_CTX_ID $CLONE_CTX_ID --hostname $CLONE_HOSTNAME                       # Clone the Template LXC into a new Clone LXC
-pct set $CLONE_CTX_ID --mp0 "/dev/zvol/$CLONE_DOCKER_DISK,mp=/var/lib/docker,backup=1"    # Add the /var/lib/docker Zvol
-pct set $CLONE_CTX_ID --net0 "name=eth0,bridge=vmbr0,hwaddr=$CLONE_MAC,ip=dhcp,type=veth" # Set the MAC address - don't forget to add the Static DHCP Mapping on your router
-[ -n "$CTX_CORES" ] && pct set $CLONE_CTX_ID --cores "$CTX_CORES"                         # Set the number of CPU cores
-[ -n "$CTX_MEMORY" ] && pct set $CLONE_CTX_ID --memory "$CTX_MEMORY"                      # Set the RAM in MB
-[ -n "$CTX_SWAP" ] && pct set $CLONE_CTX_ID --swap "$CTX_SWAP"                            # Set the Swap in MB
+pct stop "$TEMPLATE_CTX_ID" &>/dev/null                                                                          # Silently stop the Template LXC if it's started
+zfs list -t snapshot "$TEMPLATE_DOCKER_DISK@clean" >/dev/null 2>&1 || zfs snapshot "$TEMPLATE_DOCKER_DISK@clean" # If it doesn't already exist, Snapshot the docker disk so it can be cloned
+zfs clone "$TEMPLATE_DOCKER_DISK@clean" $CLONE_DOCKER_DISK                                                       # Clone the Template's docker disk (/var/lib/docker in the container)
+pct clone $TEMPLATE_CTX_ID $CLONE_CTX_ID --hostname $CLONE_HOSTNAME                                              # Clone the Template LXC into a new Clone LXC
+pct set $CLONE_CTX_ID --mp0 "/dev/zvol/$CLONE_DOCKER_DISK,mp=/var/lib/docker,backup=1"                           # Add the /var/lib/docker Zvol
+pct set $CLONE_CTX_ID --net0 "name=eth0,bridge=vmbr0,hwaddr=$CLONE_MAC,ip=dhcp,type=veth"                        # Set the MAC address - don't forget to add the Static DHCP Mapping on your router
+[ -n "$CTX_CORES" ] && pct set $CLONE_CTX_ID --cores "$CTX_CORES"                                                # Set the number of CPU cores
+[ -n "$CTX_MEMORY" ] && pct set $CLONE_CTX_ID --memory "$CTX_MEMORY"                                             # Set the RAM in MB
+[ -n "$CTX_SWAP" ] && pct set $CLONE_CTX_ID --swap "$CTX_SWAP"                                                   # Set the Swap in MB
 
 #######################################################
 # Start the clone and display info to the user

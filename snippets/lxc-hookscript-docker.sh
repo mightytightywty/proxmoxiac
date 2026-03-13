@@ -55,7 +55,7 @@ case "$phase" in
         git -C "/root/infrastructure" pull origin main --rebase --autostash || { echo "ABORTING: Could not pull latest infrastructure-as-code from Git."; exit 1; }
         
         # Fetch Environment Variables that start with "VMID_", exit if failed
-        ENV_EXPORTS=$(get_secrets "${vmid}_") || { echo "ABORTING: Could not retrieve secrets from Bitwarden Secrets Manager."; exit 1; }
+        ENV_EXPORTS=$(get_secrets "LXC${vmid}_") || { echo "ABORTING: Could not retrieve secrets from Bitwarden Secrets Manager."; exit 1; }
 
         # Find directories inside the LXC under the docker root folder -L follows symbolic links
         # Use mapfile to safely handle paths with spaces
@@ -110,7 +110,7 @@ case "$phase" in
         pct exec "$vmid" -- [ -d "/opt/docker" ] || exit 0
 
         # Fetch Environment Variables that start with "VMID_"
-        ENV_EXPORTS=$(get_secrets "${vmid}_") || echo "WARNING: Could not retrieve secrets from Bitwarden Secrets Manager." >&2
+        ENV_EXPORTS=$(get_secrets "LXC${vmid}_") || echo "WARNING: Could not retrieve secrets from Bitwarden Secrets Manager." >&2
 
         # Stop all services
         echo "Stopping services in reverse alphabetical order."

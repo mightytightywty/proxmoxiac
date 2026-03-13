@@ -104,11 +104,11 @@ if [ -f "/etc/pve/lxc/${CTX_ID}.conf" ] || zfs list "$ZVOL_DOCKER" &>/dev/null; 
 
     DEPENDENT_VOLUMES=$(zfs destroy -Rnv "$ZVOL_DOCKER")
     if [ -n "$DEPENDENT_VOLUMES" ]; then
-        echo "WARNING: The following ZFS volumes are linked to this clone:"
+        echo "WARNING: The following ZFS volumes are linked to this template:"
         echo "$DEPENDENT_VOLUMES"
         echo "Proceeding will DESTROY these volumes, AND ALL CHILD LXCs associated with these volumes."
     else
-        echo "Proceeding will DESTROY and re-create this clone."
+        echo "Proceeding will DESTROY and re-create this template."
     fi
 
     read -p "Do you want to continue? (y/N): " -n 1 -r

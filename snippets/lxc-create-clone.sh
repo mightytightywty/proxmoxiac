@@ -80,14 +80,11 @@ pct config $TEMPLATE_CTX_ID >/dev/null 2>&1 || { echo "Error: Template LXC $TEMP
 if [ -f "/etc/pve/lxc/${CLONE_CTX_ID}.conf" ] || zfs list "$CLONE_DOCKER_DISK" &>/dev/null; then
     echo "Destination LXC $CLONE_CTX_ID or Zvol $CLONE_DOCKER_DISK already exists."
 
-    # Find dependent clones (ZFS volumes that originated from this clone's Zvol)
-    # Filter for volumes where the origin matches this clone's Zvol followed by '@'
-    DEPENDENT_VOLUMES=$(zfs list -H -o name,origin -t volume | awk -v vol="$CLONE_DOCKER_DISK" '$2 ~ "^" vol "@" {print $1}')
-
+    DEPENDENT_VOLUMES=$(zfs destroy -Rnv "$CLONE_DOCKER_DISK")
     if [ -n "$DEPENDENT_VOLUMES" ]; then
-        echo "WARNING: The following ZFS volumes are clones of this clone:"
+        echo "WARNING: The following ZFS volumes are linked to this clone:"
         echo "$DEPENDENT_VOLUMES"
-        echo "Proceeding will DESTROY this clone AND ALL CHILD LXCs associated with these volumes."
+        echo "Proceeding will DESTROY these volumes, AND ALL CHILD LXCs associated with these volumes."
     else
         echo "Proceeding will DESTROY and re-create this clone."
     fi
@@ -99,40 +96,21 @@ if [ -f "/etc/pve/lxc/${CLONE_CTX_ID}.conf" ] || zfs list "$CLONE_DOCKER_DISK" &
         exit 1
     fi
 
-    # Destroy Dependents
+    # Destroy Dependent LXCs
     for CLONE_VOL in $DEPENDENT_VOLUMES; do
         # Extract LXC ID from dependent volume name (assuming format *vol-ID-docker*)
-        if [[ "$CLONE_VOL" =~ (base|sub)vol-([0-9]+)-docker ]]; then
+        if [[ "$CLONE_VOL" =~ (base|sub)vol-([0-9]+)-docker$ ]]; then
             CLONE_ID="${BASH_REMATCH[2]}"
-            echo "Stopping and destroying Child LXC $CLONE_ID..."
+            echo "Stopping and destroying LXC $CLONE_ID..."
             pct stop "$CLONE_ID" &>/dev/null || true
-            pct destroy "$CLONE_ID" --purge &>/dev/null
-        fi
-        
-        # Destroy the dependent volume if it still exists
-        if zfs list "$CLONE_VOL" &>/dev/null; then
-            echo "Destroying Child Volume $CLONE_VOL..."
-            zfs destroy -r "$CLONE_VOL"
+            pct destroy "$CLONE_ID" --purge &>/dev/null || true
         fi
     done
-fi
 
-# --- Destroy Template LXC Container if it exists ---
-# Check if the config file exists (Standard PVE check for container existence)
-if [ -f "/etc/pve/lxc/${CLONE_CTX_ID}.conf" ]; then
-    pct stop $CLONE_CTX_ID &>/dev/null || true   # Stop the container silently if it is running
-    # Destroy the container (purge removes config and disk)
-    # Redirecting output to /dev/null to keep it clean, remove '&>/dev/null' if you want to see PVE logs
-    pct destroy $CLONE_CTX_ID --purge &>/dev/null
-    echo "Container $CLONE_CTX_ID destroyed."
+    # Destroy destination Zvol (and all dependent volumes)
+    echo "Destroying Zvol $CLONE_DOCKER_DISK and all dependent volumes..."
+    zfs destroy -Rv "$CLONE_DOCKER_DISK"
 fi
-
-# --- Destroy Template ZFS Zvol if it exists ---
-if zfs list "$CLONE_DOCKER_DISK" &>/dev/null; then # Check if the ZFS dataset/volume exists
-    zfs destroy -r "$CLONE_DOCKER_DISK"       # Destroy recursively (-r) to handle any potential snapshots causing errors
-    echo "Zvol $CLONE_DOCKER_DISK destroyed."
-fi
-
 
 
 #######################################################

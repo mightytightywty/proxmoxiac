@@ -163,7 +163,7 @@ pct stop "$TEMPLATE_CTX_ID" &>/dev/null || true                                 
 pct set $TEMPLATE_CTX_ID --delete mp0                                                                            # Temporarily remove mount point 0 from the template lxc
 zfs list -t snapshot "$TEMPLATE_DOCKER_DISK@clean" >/dev/null 2>&1 || zfs snapshot "$TEMPLATE_DOCKER_DISK@clean" # If it doesn't already exist, Snapshot the docker disk so it can be cloned
 zfs clone "$TEMPLATE_DOCKER_DISK@clean" $CLONE_DOCKER_DISK                                                       # Clone the Template's docker disk (/var/lib/docker in the container)
-pct clone $TEMPLATE_CTX_ID $CLONE_CTX_ID                                                                         # Create a clone of the template lxc
+pct clone $TEMPLATE_CTX_ID $CLONE_CTX_ID --hostname $CLONE_HOSTNAME                                              # Create a clone of the template lxc
 pct set $TEMPLATE_CTX_ID --mp0 "/dev/zvol/$TEMPLATE_DOCKER_DISK,mp=/var/lib/docker,backup=1"                     # Restore the original mount point to the template lxc
 pct set $CLONE_CTX_ID --mp0 "/dev/zvol/$CLONE_DOCKER_DISK,mp=/var/lib/docker,backup=1"                           # Add the /var/lib/docker Zvol to the clone lxc
 pct set $CLONE_CTX_ID --net0 "name=eth0,bridge=vmbr0,hwaddr=$CLONE_MAC,ip=dhcp,type=veth"                        # Set the MAC address - don't forget to add the Static DHCP Mapping on your router

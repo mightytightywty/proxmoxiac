@@ -105,7 +105,7 @@ if [ -f "/etc/pve/lxc/${CLONE_CTX_ID}.conf" ] || zfs list "$CLONE_DOCKER_DISK" &
         if [[ "$CLONE_VOL" =~ (base|sub)vol-([0-9]+)-docker ]]; then
             CLONE_ID="${BASH_REMATCH[2]}"
             echo "Stopping and destroying Child LXC $CLONE_ID..."
-            pct stop "$CLONE_ID" &>/dev/null
+            pct stop "$CLONE_ID" &>/dev/null || true
             pct destroy "$CLONE_ID" --purge &>/dev/null
         fi
         
@@ -120,7 +120,7 @@ fi
 # --- Destroy Template LXC Container if it exists ---
 # Check if the config file exists (Standard PVE check for container existence)
 if [ -f "/etc/pve/lxc/${CLONE_CTX_ID}.conf" ]; then
-    pct stop $CLONE_CTX_ID &>/dev/null   # Stop the container silently if it is running
+    pct stop $CLONE_CTX_ID &>/dev/null || true   # Stop the container silently if it is running
     # Destroy the container (purge removes config and disk)
     # Redirecting output to /dev/null to keep it clean, remove '&>/dev/null' if you want to see PVE logs
     pct destroy $CLONE_CTX_ID --purge &>/dev/null
@@ -149,7 +149,7 @@ fi
 #######################################################
 # Create the clone
 #######################################################
-pct stop "$TEMPLATE_CTX_ID" &>/dev/null                                                                          # Silently stop the Template LXC if it's started
+pct stop "$TEMPLATE_CTX_ID" &>/dev/null || true                                                                  # Silently stop the Template LXC if it's started
 zfs list -t snapshot "$TEMPLATE_DOCKER_DISK@clean" >/dev/null 2>&1 || zfs snapshot "$TEMPLATE_DOCKER_DISK@clean" # If it doesn't already exist, Snapshot the docker disk so it can be cloned
 zfs clone "$TEMPLATE_DOCKER_DISK@clean" $CLONE_DOCKER_DISK                                                       # Clone the Template's docker disk (/var/lib/docker in the container)
 pct clone $TEMPLATE_CTX_ID $CLONE_CTX_ID --hostname $CLONE_HOSTNAME                                              # Clone the Template LXC into a new Clone LXC

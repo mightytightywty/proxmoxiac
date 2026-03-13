@@ -127,7 +127,7 @@ if [ -f "/etc/pve/lxc/${CTX_ID}.conf" ] || zfs list "$ZVOL_DOCKER" &>/dev/null; 
         if [[ "$CLONE_VOL" =~ basevol-([0-9]+)-docker ]]; then
             CLONE_ID="${BASH_REMATCH[1]}"
             echo "Stopping and destroying Child LXC $CLONE_ID..."
-            pct stop "$CLONE_ID" &>/dev/null
+            pct stop "$CLONE_ID" &>/dev/null || true
             pct destroy "$CLONE_ID" --purge &>/dev/null
         fi
         
@@ -142,7 +142,7 @@ fi
 # --- Destroy Template LXC Container if it exists ---
 # Check if the config file exists (Standard PVE check for container existence)
 if [ -f "/etc/pve/lxc/${CTX_ID}.conf" ]; then
-    pct stop $CTX_ID &>/dev/null   # Stop the container silently if it is running
+    pct stop $CTX_ID &>/dev/null || true   # Stop the container silently if it is running
     # Destroy the container (purge removes config and disk)
     # Redirecting output to /dev/null to keep it clean, remove '&>/dev/null' if you want to see PVE logs
     pct destroy $CTX_ID --purge &>/dev/null
@@ -278,7 +278,7 @@ if [[ "$DOCKER_DRIVER" != "overlay2" && "$DOCKER_DRIVER" != "overlayfs" ]]; then
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "Aborting. Cleaning up..."
-        pct stop $CTX_ID &>/dev/null
+        pct stop $CTX_ID &>/dev/null || true
         pct destroy $CTX_ID --purge &>/dev/null
         zfs destroy -r "$ZVOL_DOCKER" &>/dev/null
         exit 1

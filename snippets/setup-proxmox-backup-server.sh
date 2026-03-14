@@ -19,13 +19,21 @@ if command -v pveversion >/dev/null 2>&1 || [ -d "/etc/pve" ]; then
 fi
 
 # Update the Debian 13 base system
-apt-get update && apt-get dist-upgrade -y
+apt update && apt upgrade -y
+apt install -y curl gnupg2 ca-certificates
 
 # Download Proxmox key
 wget https://enterprise.proxmox.com/debian/proxmox-release-trixie.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-trixie.gpg
 
 # Add the PBS 4.x repository
-echo "deb http://download.proxmox.com/debian/pbs trixie pbs-no-subscription" > /etc/apt/sources.list.d/pbs.list
+cat <<EOF > /etc/apt/sources.list.d/pbs-no-subscription.sources
+Types: deb
+URIs: http://download.proxmox.com/debian/pbs
+Suites: trixie
+Components: pbs-no-subscription
+Signed-By: /etc/apt/trusted.gpg.d/proxmox-release-trixie.gpg
+EOF
 
 # Install Proxmox Backup Server
-apt-get update && apt-get install proxmox-backup-server -y
+apt update && apt upgrade
+apt install -y proxmox-backup-server

@@ -35,5 +35,5 @@ Signed-By: /etc/apt/trusted.gpg.d/proxmox-release-trixie.gpg
 EOF
 
 # Install Proxmox Backup Server
-apt update && apt upgrade
-apt install -y proxmox-backup-server
+apt update && apt upgrade -y
+apt install proxmox-backup-server

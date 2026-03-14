@@ -36,4 +36,4 @@ EOF
 
 # Install Proxmox Backup Server
 apt update && apt upgrade -y
-apt install proxmox-backup-server
+apt install -y proxmox-backup-server

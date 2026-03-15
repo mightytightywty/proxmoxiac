@@ -37,3 +37,18 @@ EOF
 # Install Proxmox Backup Server
 apt update && apt upgrade -y
 apt install -y proxmox-backup-server
+
+# Disable pbs-enterprise repo - Borrowed from (https://github.com/community-scripts/ProxmoxVE/blob/main/tools/pve/post-pbs-install.sh)
+echo "Disabling 'pbs-enterprise' repository"
+# Use Enabled: false instead of commenting to avoid malformed entry
+if grep -q "^Enabled:" /etc/apt/sources.list.d/pbs-enterprise.sources 2>/dev/null; then
+    sed -i 's/^Enabled:.*/Enabled: false/' /etc/apt/sources.list.d/pbs-enterprise.sources
+else
+    echo "Enabled: false" >>/etc/apt/sources.list.d/pbs-enterprise.sources
+fi
+echo "Disabled 'pbs-enterprise' repository"
+
+# Disable subscription nag - Borrowed from (https://github.com/community-scripts/ProxmoxVE/blob/main/tools/pve/post-pbs-install.sh)
+echo "Disabling subscription nag"
+echo "DPkg::Post-Invoke { \"if [ -s /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js ] && ! grep -q -F 'NoMoreNagging' /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js; then sed -i '/data\\.status/{s/\\!//;s/active/NoMoreNagging/}' /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js; fi\" };" >/etc/apt/apt.conf.d/no-nag-script
+echo "Disabled subscription nag (clear browser cache!)"

@@ -335,6 +335,9 @@ fi
 # Add Proxmox storage "infrastructure" for Infrastructure-As-Code Repository
 pvesm status | grep -q "infrastructure" || pvesm add dir infrastructure --path "/root/infrastructure" --content snippets
 
+# Set local storage to only hold content types: Import, ISO Images and CT templates
+pvesm set local --content import,iso,vztmpl #,rootdir,images,backup
+
 # Add Pre-configured Proxmox storage from config file
 [ ${#PVESM[@]} -gt 0 ] && for PVESM_ARGS in "${PVESM[@]}"; do
     STORAGE_NAME=$(echo "$PVESM_ARGS" | awk '{print $3}')

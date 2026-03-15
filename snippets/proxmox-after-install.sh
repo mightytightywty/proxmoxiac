@@ -507,6 +507,22 @@ if ! command -v powertop &> /dev/null && read -p "Install Powertop and AutoASPM 
     /bin/bash /root/infrastructure/snippets/setup-powertop-autoaspm.sh
 fi
 
+# Setup Sanoid and Syncoid, unless it's already installed
+if ! command -v sanoid &> /dev/null && read -p "Install Sanoid and Syncoid to manage ZFS snapshots? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    apt update && apt install -y sanoid && mkdir -p /etc/sanoid
+    if [ -f "/etc/sanoid/sanoid.conf" ]; then
+        echo "You already have a sanoid.conf file at /etc/sanoid/sanoid.conf - saving a copy to your IaC..."
+        cp "/etc/sanoid/sanoid.conf" "/root/infrastructure/snippets/$(hostname)-sanoid.conf"
+    elif [ -f "/root/infrastructure/snippets/$(hostname)-sanoid.conf" ]; then
+        cp "/root/infrastructure/snippets/$(hostname)-sanoid.conf" "/etc/sanoid/sanoid.conf"
+        echo "Restored your preconfigured sanoid.conf file from /root/infrastructure/snippets/$(hostname)-sanoid.conf"
+    else
+        echo "You currently don't have a sanoid.conf file. Please create one and save it to these two locations:"
+        echo "/etc/sanoid/sanoid.conf"
+        echo "/root/infrastructure/snippets/$(hostname)-sanoid.conf"
+    fi
+fi
+
 echo ""
 echo "===================================================================================="
 echo "       Commit changes to Git"

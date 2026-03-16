@@ -91,9 +91,9 @@ case "$phase" in
                 # Start docker stack on LXC
                 echo "Starting $SERVICE_NAME..."
                 if pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && ([ -f docker-compose.yml ] || [ -f docker-compose.yaml ])"; then
-                    pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && $ENV_EXPORTS docker compose pull"
+                    pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && $ENV_EXPORTS docker compose pull --ignore-buildable"
                     echo "Docker Output:"
-                    echo "$(pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && $ENV_EXPORTS docker compose up -d --remove-orphans" 2>&1)"
+                    echo "$(pct exec "$vmid" -- /bin/bash -c "cd \"$LXC_SERVICE_PATH\" && $ENV_EXPORTS docker compose up -d --build --remove-orphans" 2>&1)"
                 else
                     echo "Skipping $SERVICE_NAME: No docker-compose file found."
                 fi

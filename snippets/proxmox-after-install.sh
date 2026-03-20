@@ -486,7 +486,7 @@ if ! command -v tailscale &> /dev/null && read -p "Install Tailscale directly on
 
     # Save TAILSCALE_ARGS to CONFIG_FILE, intentionally leaving out --auth-key
     for TAILSCALE_ARG in "${TAILSCALE_ARGS[@]}"; do add_line_if_missing "$CONFIG_FILE" "TAILSCALE_ARGS+=(\"$TAILSCALE_ARG\")"; done
-    [[ "${TAILSCALE_ARGS[*]}" != *"--auth-key"* ]]            && read -p "Do you want to use a Tailscale Auth Key? (y/N): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ ]] && read -p "Enter your Tailscale Auth Key: " TAILSCALE_AUTH_KEY && [ -n "$TAILSCALE_AUTH_KEY" ] && TAILSCALE_ARGS+=("--auth-key=${TAILSCALE_AUTH_KEY}")
+    [[ "${TAILSCALE_ARGS[*]}" != *"--auth-key"* ]] && read -p "Do you want to use a Tailscale Auth Key? (y/N): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ ]] && read -p "Enter your Tailscale Auth Key: " TAILSCALE_AUTH_KEY && [ -n "$TAILSCALE_AUTH_KEY" ] && TAILSCALE_ARGS+=("--auth-key=${TAILSCALE_AUTH_KEY}")
 
     /bin/bash /root/infrastructure/snippets/setup-tailscale.sh "${TAILSCALE_ARGS[@]}"
 fi
@@ -515,16 +515,52 @@ fi
 # Setup Sanoid and Syncoid, unless it's already installed
 if ! command -v sanoid &> /dev/null && read -p "Install Sanoid and Syncoid to manage ZFS snapshots? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     apt update && apt install -y sanoid && mkdir -p /etc/sanoid
-    if [ -f "/etc/sanoid/sanoid.conf" ]; then
-        echo "You already have a sanoid.conf file at /etc/sanoid/sanoid.conf - saving a copy to your IaC..."
-        cp "/etc/sanoid/sanoid.conf" "/root/infrastructure/snippets/$(hostname)-sanoid.conf"
-    elif [ -f "/root/infrastructure/snippets/$(hostname)-sanoid.conf" ]; then
-        cp "/root/infrastructure/snippets/$(hostname)-sanoid.conf" "/etc/sanoid/sanoid.conf"
-        echo "Restored your preconfigured sanoid.conf file from /root/infrastructure/snippets/$(hostname)-sanoid.conf"
+fi
+
+# If Sanoid is installed, configure it to use the IaC config
+if command -v sanoid &> /dev/null; then
+    echo "Sanoid is installed, configuring it to use your IaC config..."
+    SANOID_CONF_IAC="/root/infrastructure/config/$(hostname)-sanoid.conf"
+    SYNCOID_SCRIPT="/root/infrastructure/config/$(hostname)-syncoid.sh"
+    SANOID_CONF_ETC="/etc/sanoid/sanoid.conf"
+    if [ ! -L "$SANOID_CONF_ETC" ]; then                      # Skip if a symlink already exists
+        mkdir -p "$(dirname "$SANOID_CONF_IAC")"              # Ensure the IaC config folder exists
+        if [ -f "$SANOID_CONF_ETC" ]; then                    # If $SANOID_CONF_IAC doesn't exist or the filesize of $SANOID_CONF_ETC is > $SANOID_CONF_IAC
+            if [ ! -f "$SANOID_CONF_IAC" ] || [ "$(stat -c%s "$SANOID_CONF_ETC" 2>/dev/null || echo 0)" -gt "$(stat -c%s "$SANOID_CONF_IAC" 2>/dev/null || echo 0)" ]; then
+                mv -f "$SANOID_CONF_ETC" "$SANOID_CONF_IAC"   # Move it to $SANOID_CONF_IAC, overwriting if necessary
+            fi
+        fi
+        [ -f "$SANOID_CONF_IAC" ] || touch "$SANOID_CONF_IAC" # Ensure a file exists at $SANOID_CONF_IAC
+        rm -f "$SANOID_CONF_ETC"                              # Ensure no file exists at $SANOID_CONF_ETC
+        ln -s "$SANOID_CONF_IAC" "$SANOID_CONF_ETC"           # Create the symlink
+        echo "Please finish setting up Sanoid by updating your config file at: \"$SANOID_CONF_IAC\" or via the symlink \"$SANOID_CONF_ETC\"."
+    fi
+    if [ -f "$SYNCOID_SCRIPT" ]; then
+        cat <<EOF > "/etc/systemd/system/syncoid.service"
+[Unit]
+Description=Run Syncoid Script
+
+[Service]
+Type=oneshot
+ExecStart=$SYNCOID_SCRIPT
+EOF
+        cat <<EOF > "/etc/systemd/system/syncoid.timer"
+[Unit]
+Description=Timer for Syncoid Script
+
+[Timer]
+OnCalendar=*-*-* 03:35:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+        systemctl daemon-reload
+        systemctl enable --now syncoid.timer
+        echo "$SYNCOID_SCRIPT is scheduled to run nightly at 3:35am"
     else
-        echo "You currently don't have a sanoid.conf file. Please create one and save it to these two locations:"
-        echo "/etc/sanoid/sanoid.conf"
-        echo "/root/infrastructure/snippets/$(hostname)-sanoid.conf"
+        echo "Consider creating a syncoid script that will sync your zfs snapshots to another location every night."
+        echo "Save it to \"$SYNCOID_SCRIPT\", and then re-run proxmox-after-install.sh to enable/schedule it to run nightly."
     fi
 fi
 

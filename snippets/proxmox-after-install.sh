@@ -507,6 +507,11 @@ if ! command -v powertop &> /dev/null && read -p "Install Powertop and AutoASPM 
     /bin/bash /root/infrastructure/snippets/setup-powertop-autoaspm.sh
 fi
 
+# Setup htop, unless it's already installed
+if ! command -v htop &> /dev/null && read -p "Install htop for monitoring system activity? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    apt update && apt install -y htop
+fi
+
 # Setup Sanoid and Syncoid, unless it's already installed
 if ! command -v sanoid &> /dev/null && read -p "Install Sanoid and Syncoid to manage ZFS snapshots? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     apt update && apt install -y sanoid && mkdir -p /etc/sanoid

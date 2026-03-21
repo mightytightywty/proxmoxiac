@@ -169,7 +169,7 @@ echo ""
 echo "===================================================================================="
 echo "       Notifications Setup"
 echo "===================================================================================="
-# Setup Pre-configured Datacenter > Notifications
+# Setup Pre-configured Datacenter > Notifications > SMTP Targets
 if [ ${#SMTP_ENDPOINTS[@]} -gt 0 ]; then
     echo "Found ${#SMTP_ENDPOINTS[@]} Pre-configured SMTP Notification endpoints:"
     for SMTP_ENDPOINT in "${SMTP_ENDPOINTS[@]}"; do
@@ -182,7 +182,19 @@ if [ ${#SMTP_ENDPOINTS[@]} -gt 0 ]; then
     echo ""
 fi
 
-# Setup New Datacenter > Notifications
+# Setup Pre-configured Datacenter > Notifications > Webhook Targets
+if [ ${#WEBHOOK_ENDPOINTS[@]} -gt 0 ]; then
+    echo "Found ${#WEBHOOK_ENDPOINTS[@]} Pre-configured Webhook Notification endpoints:"
+    for WEBHOOK_ENDPOINT in "${WEBHOOK_ENDPOINTS[@]}"; do
+        echo $WEBHOOK_ENDPOINT;
+        if read -p "Import above Pre-configured Webhook Notification endpoint from config file? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+            eval pvesh $WEBHOOK_ENDPOINT || echo "Warning: Failed to apply notification setting: ${WEBHOOK_ENDPOINT}"
+        fi
+    done
+    echo ""
+fi
+
+# Setup New Datacenter > Notifications > Add SMTP Target
 if [ -f /etc/pve/notifications.cfg ] && grep -q "^smtp:" /etc/pve/notifications.cfg; then # Check if any notifications exist with type "smtp"
     echo "SMTP Notification endpoint already exists. Skipping SMTP setup."
 elif read -p "Setup SMTP Notifications? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
@@ -206,15 +218,50 @@ elif read -p "Setup SMTP Notifications? (Y/n): " -n 1 -r && echo "" && [[ $REPLY
     done
 fi
 
-# Set SMTP-Alerts as the default notification endpoint?
-if [ -f /etc/pve/notifications.cfg ] && grep -q "^smtp: SMTP-Alerts" /etc/pve/notifications.cfg && ! pvesh get /cluster/notifications/matchers/default-matcher --output-format json 2>/dev/null | jq -e '.target | index("SMTP-Alerts")' >/dev/null; then
-    if read -p "Set SMTP-Alerts as the default notification endpoint? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-        if pvesh get /cluster/notifications/matchers/default-matcher >/dev/null 2>&1; then
-            echo "Updating default-matcher to use SMTP-Alerts..."
-            pvesh set /cluster/notifications/matchers/default-matcher --target SMTP-Alerts --comment "Route all notifications to SMTP-Alerts"
+# Setup New Datacenter > Notifications > Add Webhook Target
+if [ -f /etc/pve/notifications.cfg ] && grep -q "^webhook:" /etc/pve/notifications.cfg; then # Check if any notifications exist with type "webhook"
+    echo "Webhook Notification endpoint already exists. Skipping Webhook setup."
+elif read -p "Setup Webhook Notifications? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    while true; do
+        WEBHOOK_ARGS=(create /cluster/notifications/endpoints/webhook --author "Proxmox-$(hostname)")
+        read -p "Webhook Server Name? [Webhook-Alerts]: ";            WEBHOOK_ARGS+=(--name "${REPLY:-Webhook-Alerts}")
+        read -p "Webhook URL? [https://]: ";                          WEBHOOK_ARGS+=(--url "${REPLY:-https://}")
+        read -p "Webhook Method? [post]: ";                           WEBHOOK_ARGS+=(--method "${REPLY:-post}")
+        read -p "Webhook Header? [Content-Type: application/json]: "; WEBHOOK_ARGS+=(--header "${REPLY:-Content-Type: application/json}")
+        if pvesh "${WEBHOOK_ARGS[@]}" && add_line_if_missing "$CONFIG_FILE" "WEBHOOK_ENDPOINTS+=(\"$(printf "%q " "${WEBHOOK_ARGS[@]}")\")"; then
+            echo "Successfully Added Webhook Notifications"
         else
-            echo "Creating default-matcher for SMTP-Alerts..."
-            pvesh create /cluster/notifications/matchers --name default-matcher --target SMTP-Alerts --comment "Route all notifications to SMTP-Alerts"
+            read -p "Invalid Webhook Notification. Retry? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]] && continue
+        fi
+        break
+    done
+fi
+
+# Set default notification endpoints
+if [ -f /etc/pve/notifications.cfg ]; then
+    DEFAULT_TARGETS=()
+    grep -q "^smtp: SMTP-Alerts" /etc/pve/notifications.cfg && DEFAULT_TARGETS+=("SMTP-Alerts")
+    grep -q "^webhook: Apprise" /etc/pve/notifications.cfg && DEFAULT_TARGETS+=("Apprise")
+
+    if [ ${#DEFAULT_TARGETS[@]} -gt 0 ]; then
+        TARGET_LIST=$(IFS=, ; echo "${DEFAULT_TARGETS[*]}")
+        
+        NEEDS_UPDATE=0
+        CURRENT_TARGETS=$(pvesh get /cluster/notifications/matchers/default-matcher --output-format json 2>/dev/null | jq -r '.target[]' 2>/dev/null || echo "")
+        for TARGET in "${DEFAULT_TARGETS[@]}"; do
+            if ! echo "$CURRENT_TARGETS" | grep -qx "$TARGET"; then
+                NEEDS_UPDATE=1
+            fi
+        done
+
+        if [ "$NEEDS_UPDATE" -eq 1 ] && read -p "Set $TARGET_LIST as the default notification endpoint(s)? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+            if pvesh get /cluster/notifications/matchers/default-matcher >/dev/null 2>&1; then
+                echo "Updating default-matcher to use $TARGET_LIST..."
+                pvesh set /cluster/notifications/matchers/default-matcher --target "$TARGET_LIST" --comment "Route all notifications to $TARGET_LIST"
+            else
+                echo "Creating default-matcher for $TARGET_LIST..."
+                pvesh create /cluster/notifications/matchers --name default-matcher --target "$TARGET_LIST" --comment "Route all notifications to $TARGET_LIST"
+            fi
         fi
     fi
 fi

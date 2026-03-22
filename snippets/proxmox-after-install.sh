@@ -223,7 +223,7 @@ if [ -f /etc/pve/notifications.cfg ] && grep -q "^webhook:" /etc/pve/notificatio
     echo "Webhook Notification endpoint already exists. Skipping Webhook setup."
 elif read -p "Setup Webhook Notifications? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     while true; do
-        WEBHOOK_ARGS=(create /cluster/notifications/endpoints/webhook --author "Proxmox-$(hostname)")
+        WEBHOOK_ARGS=(create /cluster/notifications/endpoints/webhook)
         read -p "Webhook Server Name? [Webhook-Alerts]: ";            WEBHOOK_ARGS+=(--name "${REPLY:-Webhook-Alerts}")
         read -p "Webhook URL? [https://]: ";                          WEBHOOK_ARGS+=(--url "${REPLY:-https://}")
         read -p "Webhook Method? [post]: ";                           WEBHOOK_ARGS+=(--method "${REPLY:-post}")

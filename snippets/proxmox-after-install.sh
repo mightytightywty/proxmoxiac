@@ -96,7 +96,7 @@ else
 fi
 
 # Load or Create CONFIG_FILE
-CONFIG_FILE="/root/infrastructure/snippets/$(hostname)-host-config.sh"                                      # Set the Host Config File Location (within /root/infrastructure)
+CONFIG_FILE="/root/infrastructure/config/$(hostname)-host-config.sh"                                        # Set the Host Config File Location (within /root/infrastructure)
 [[ -f "$CONFIG_FILE" ]] && echo "Loading existing configuration from $CONFIG_FILE" && source "$CONFIG_FILE" # If Host Config File exists, execute it
 add_line_if_missing $CONFIG_FILE "#!/bin/bash"                                # If Host Config File doesn't exist, create it, and add a shebang
 add_line_if_missing $CONFIG_FILE "GITHUB_USERNAME=\"$GITHUB_USERNAME\""       # Save GITHUB_USERNAME to config file
@@ -272,8 +272,8 @@ echo "       Crontab Setup"
 echo "===================================================================================="
 
 # Create cron-hourly file if it doesn't already exist
-if [ ! -f "/root/infrastructure/snippets/$(hostname)-cron-hourly.sh" ]; then
-cat <<'EOF' > "/root/infrastructure/snippets/$(hostname)-cron-hourly.sh"
+if [ ! -f "/root/infrastructure/config/$(hostname)-cron-hourly.sh" ]; then
+cat <<'EOF' > "/root/infrastructure/config/$(hostname)-cron-hourly.sh"
 #!/bin/bash
 
 # Storage threshold to trigger a notification
@@ -289,8 +289,8 @@ EOF
 fi
 
 # Create cron-weekly file if it doesn't already exist
-if [ ! -f "/root/infrastructure/snippets/$(hostname)-cron-weekly.sh" ]; then
-cat <<'EOF' > "/root/infrastructure/snippets/$(hostname)-cron-weekly.sh"
+if [ ! -f "/root/infrastructure/config/$(hostname)-cron-weekly.sh" ]; then
+cat <<'EOF' > "/root/infrastructure/config/$(hostname)-cron-weekly.sh"
 #!/bin/bash
 
 # Schedule fstrim See: https://gist.github.com/Impact123/3dbd7e0ddaf47c5539708a9cbcaab9e3#discard
@@ -311,10 +311,10 @@ sed -i '/export PATH=/d' "/root/.bashrc"                                        
 echo '[[ ":$PATH:" != *":/root/.local/bin:"* ]] && export PATH="$PATH:/root/.local/bin"' >> "/root/.bashrc" # Make it persist on reboot
 
 # Schedule cron jobs
-add_to_crontab "0 * * * * /root/infrastructure/snippets/$(hostname)-cron-hourly.sh"  # Hourly - Every hour, on the hour
-echo "Successfully added cron job for /root/infrastructure/snippets/$(hostname)-cron-hourly.sh"
-add_to_crontab "30 0 * * 0 /root/infrastructure/snippets/$(hostname)-cron-weekly.sh" # Weekly - Sundays at 12:30am
-echo "Successfully added cron job for /root/infrastructure/snippets/$(hostname)-cron-weekly.sh"
+add_to_crontab "0 * * * * /root/infrastructure/config/$(hostname)-cron-hourly.sh"  # Hourly - Every hour, on the hour
+echo "Successfully added cron job for /root/infrastructure/config/$(hostname)-cron-hourly.sh"
+add_to_crontab "30 0 * * 0 /root/infrastructure/config/$(hostname)-cron-weekly.sh" # Weekly - Sundays at 12:30am
+echo "Successfully added cron job for /root/infrastructure/config/$(hostname)-cron-weekly.sh"
 
 # Enable built-in job to run fstrim weekly on Proxmox host too. It should be enabled by default, but it doesn't hurt to double-check.
 systemctl enable fstrim.timer
@@ -423,8 +423,8 @@ if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     # Create a backup of fstab
     cp "/etc/fstab" "/etc/fstab.bak.$(date +%F_%T)" && echo "Backup created at /etc/fstab.bak.$(date +%F_%T)"
 
-    # Use the latest version from "/root/infrastructure/snippets/$(hostname)-fstab"
-    [ -f "/root/infrastructure/snippets/$(hostname)-fstab" ] && cp "/root/infrastructure/snippets/$(hostname)-fstab" "/etc/fstab"
+    # Use the latest version from "/root/infrastructure/config/$(hostname)-fstab"
+    [ -f "/root/infrastructure/config/$(hostname)-fstab" ] && cp "/root/infrastructure/config/$(hostname)-fstab" "/etc/fstab"
 
     # add proxmoxiac sample lines if they're not already in the file
     if ! grep -q "proxmoxiac" /etc/fstab; then
@@ -455,7 +455,7 @@ EOF
     done
 
     # Update infrastructure-as-code copy of fstab
-    cp "/etc/fstab" "/root/infrastructure/snippets/$(hostname)-fstab" && echo "Backup created at /root/infrastructure/snippets/$(hostname)-fstab"
+    cp "/etc/fstab" "/root/infrastructure/config/$(hostname)-fstab" && echo "Backup created at /root/infrastructure/config/$(hostname)-fstab"
 
     mount -a # (or just reboot)
     # df -h #verify the mount points

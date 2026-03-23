@@ -552,7 +552,7 @@ if ! command -v hd-idle &> /dev/null && read -p "Install HD-Idle Tool to auto-sp
         [[ ! "$HDD_IDLE_SECONDS" =~ ^[0-9]+$ ]] && echo "Error: Please enter a valid integer." && HDD_IDLE_SECONDS=""
     done
     add_line_if_missing $CONFIG_FILE "HDD_IDLE_SECONDS=\"$HDD_IDLE_SECONDS\""
-    /bin/bash /root/infrastructure/snippets/setup-hd-idle.sh "$HDD_IDLE_SECONDS"
+    /bin/bash /root/infrastructure/snippets/setup-hd-idle.sh "$HDD_IDLE_SECONDS" || echo "Warning: HD-Idle setup failed or found no applicable spinning hard drives."
 fi
 
 # Setup Powertop and AutoASPM for Power Usage Optimization, unless it's already installed

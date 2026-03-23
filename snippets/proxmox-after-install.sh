@@ -227,7 +227,13 @@ elif read -p "Setup Webhook Notifications? (Y/n): " -n 1 -r && echo "" && [[ $RE
         read -p "Webhook Server Name? [Webhook-Alerts]: ";            WEBHOOK_ARGS+=(--name "${REPLY:-Webhook-Alerts}")
         read -p "Webhook URL? [https://]: ";                          WEBHOOK_ARGS+=(--url "${REPLY:-https://}")
         read -p "Webhook Method? [post]: ";                           WEBHOOK_ARGS+=(--method "${REPLY:-post}")
-        read -p "Webhook Header? [Content-Type: application/json]: "; WEBHOOK_ARGS+=(--header "${REPLY:-Content-Type: application/json}")
+        read -p "Webhook Header? [Content-Type: application/json]: "; HEADER_INPUT="${REPLY:-Content-Type: application/json}"
+        if [[ -n "$HEADER_INPUT" && "$HEADER_INPUT" == *":"* ]]; then
+            HEADER_NAME=$(echo "$HEADER_INPUT" | cut -d':' -f1 | xargs)
+            HEADER_VALUE=$(echo "$HEADER_INPUT" | cut -d':' -f2- | xargs)
+            HEADER_B64=$(echo -n "$HEADER_VALUE" | base64 -w0)
+            WEBHOOK_ARGS+=(--header "name=$HEADER_NAME,value=$HEADER_B64")
+        fi
         if pvesh "${WEBHOOK_ARGS[@]}" && add_line_if_missing "$CONFIG_FILE" "WEBHOOK_ENDPOINTS+=(\"$(printf "%q " "${WEBHOOK_ARGS[@]}")\")"; then
             echo "Successfully Added Webhook Notifications"
         else

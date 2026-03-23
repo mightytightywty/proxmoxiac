@@ -153,7 +153,7 @@ if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
         if [ "$SSH_KEY_COUNT" -gt 1 ]; then # Proxmox installs the first key automatically. Check that a 2nd, custom key exists.
             echo "Public SSH Key Found in /root/.ssh/authorized_keys"
             # Disable Password Authentication via a dedicated config file
-            echo 'PasswordAuthentication no' > /etc/ssh/sshd_config.d/disable_pw.conf && systemctl restart ssh
+            echo 'PasswordAuthentication no' > /etc/ssh/sshd_config.d/disable_pw.conf && { systemctl restart ssh || echo "Warning: Failed to restart ssh."; }
             break
         else
             echo "ERROR: Public SSH Key not found in /root/.ssh/authorized_keys"
@@ -323,7 +323,7 @@ add_to_crontab "30 0 * * 0 /root/infrastructure/config/$(hostname)-cron-weekly.s
 echo "Successfully added cron job for /root/infrastructure/config/$(hostname)-cron-weekly.sh"
 
 # Enable built-in job to run fstrim weekly on Proxmox host too. It should be enabled by default, but it doesn't hurt to double-check.
-systemctl enable fstrim.timer
+systemctl enable fstrim.timer || echo "Warning: Failed to enable fstrim.timer."
 
 echo ""
 echo "===================================================================================="
@@ -455,7 +455,7 @@ EOF
         for MOUNTPOINT in "${FSTAB_ENTRIES[@]}"; do
             [ -n "$MOUNTPOINT" ] && mkdir -p "$MOUNTPOINT"                          # Ensure each of the mountpoint directories listed in FSTAB actually exist
         done
-        systemctl daemon-reload                                                     # Sync systemd with the modified fstab
+        systemctl daemon-reload || true                                             # Sync systemd with the modified fstab
         if mount -a; then echo "Nice job, looks great!"; break; fi                  # Reload the new fstab entries - Automatically break the loop if mount is successful
         read -p "Errors found. Press any key to try again..." -n 1 -r -s && echo "" # Pause to let user read errors before reopening editor
     done
@@ -608,8 +608,8 @@ Persistent=true
 [Install]
 WantedBy=timers.target
 EOF
-        systemctl daemon-reload
-        systemctl enable --now syncoid.timer
+        systemctl daemon-reload || true
+        systemctl enable --now syncoid.timer || echo "Warning: Failed to enable syncoid.timer."
         echo "$SYNCOID_SCRIPT is scheduled to run nightly at 3:35am"
     else
         echo "Consider creating a syncoid script that will sync your zfs snapshots to another location every night."

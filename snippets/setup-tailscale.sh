@@ -71,7 +71,11 @@ if [[ "${TAILSCALE_ARGS[*]}" == *"--advertise-routes"* ]]; then
     ethtool -K "$ETHTOOL_IFACE" rx-udp-gro-forwarding on rx-gro-list off
 
     # Restart Tailscale for it to take effect
-    command -v systemctl &> /dev/null && systemctl restart tailscaled || rc-service tailscale restart
+    if command -v systemctl &> /dev/null; then
+        systemctl restart tailscaled || echo "Warning: Failed to restart tailscaled via systemctl."
+    elif command -v rc-service &> /dev/null; then
+        rc-service tailscale restart || echo "Warning: Failed to restart tailscale via rc-service."
+    fi
 
     # Check systemctl is-enabled networkd-dispatcher
     if command -v systemctl &> /dev/null && systemctl is-enabled networkd-dispatcher &> /dev/null; then

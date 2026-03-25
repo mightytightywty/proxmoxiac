@@ -123,45 +123,105 @@ done
 
 echo ""
 echo "===================================================================================="
-echo "       Public SSH Key Setup"
+echo "       SSH Key Setup (optional)"
 echo "===================================================================================="
-read -p "Add your Public SSH Key? (highly recommended) (Y/n): " -n 1 -r && echo ""
+echo "If you don't already have one, generate a new SSH keypair with Bitwarden Desktop Client or your software of choice. Don't forget to save it!"
+echo ""
+echo "This script can optionally pull your public SSH keys from 3 places. Add as many as you like!"
+echo "1. Bitwarden Secrets Manager (using the names: SSH_PUBLI_KEY and SSH_PRIVATE_KEY)."
+echo "2. Github - see https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account"
+echo "3. Manually pasted into this script."
+echo ""
+read -p "Import/add public SSH Keys? (Highly recommended) (Y/n): " -n 1 -r && echo ""
 if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
-    # Check for Public SSH Keys at https://github.com/$GITHUB_USERNAME.keys and if they exist, save them to /root/.ssh/authorized_keys
-    if [ -n "$GITHUB_USERNAME" ]; then
-        while true; do
+    while true; do
+        # Attempt to import SSH_PUBLIC_KEY from Bitwarden Secrets Manager
+        SSH_PUBLIC_KEY=$(/root/.local/bin/bws secret list -t $(</etc/pve/priv/bws_access_token) --output json | jq -r '.[]|select(.key=="SSH_PUBLIC_KEY")|.value') || true
+        [ -n "$SSH_PUBLIC_KEY" ] && echo "Found public SSH key in Bitwarden Secrets Manager: $SSH_PUBLIC_KEY" && add_line_if_missing "/root/.ssh/authorized_keys" "$SSH_PUBLIC_KEY"
+
+        # Check for Public SSH Keys at https://github.com/$GITHUB_USERNAME.keys
+        if [ -n "$GITHUB_USERNAME" ]; then
             echo "Checking for public SSH keys on GitHub for user: $GITHUB_USERNAME"
             GITHUB_KEYS=$(curl -fs "https://github.com/$GITHUB_USERNAME.keys" || true)
-            if [ -n "$GITHUB_KEYS" ] && [[ "$GITHUB_KEYS" == ssh-* ]]; then
-                while IFS= read -r key; do
-                    [ -n "$key" ] && add_line_if_missing "/root/.ssh/authorized_keys" "$key"
+            if [ -n "$GITHUB_KEYS" ] && echo "$GITHUB_KEYS" | grep -qE "^(ssh-|ecdsa-)"; then
+                while IFS= read -r SSH_PUBLIC_KEY; do
+                    if [[ "$SSH_PUBLIC_KEY" =~ ^(ssh|ecdsa)- ]]; then
+                        echo "Found public SSH key on your $GITHUB_USERNAME Github account: $SSH_PUBLIC_KEY"
+                        add_line_if_missing "/root/.ssh/authorized_keys" "$SSH_PUBLIC_KEY"
+                    fi
                 done <<< "$GITHUB_KEYS"
-                break
             else
-                echo "No public keys found on GitHub for $GITHUB_USERNAME or user does not exist."
-                echo "If you don't already have one, generate a new SSH keypair (and save it) with Bitwarden Desktop Client or your software of choice."
-                echo "Then, add your key to github via https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account"
-                read -p "Would you like to check GitHub again for keys? If not, you'll need to enter it here. (y/N): " -n 1 -r && echo ""
-                [[ $REPLY =~ ^[Yy]$ ]] && continue || break
+                echo "No public SSH keys found on your $GITHUB_USERNAME Github account."
+            fi
+        fi
+
+        # Ask for a manually entered key
+        read -p "Do you want to manually enter a public SSH Key? (y/N): " -n 1 -r && echo ""
+        while true; do
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                read -p "Enter your public SSH Key, starting with \"ssh-\": " SSH_PUBLIC_KEY && echo ""
+                SSH_PUBLIC_KEY=$(echo "$SSH_PUBLIC_KEY" | xargs)
+                # Ensure $SSH_PUBLIC_KEY starts with ssh- before adding to authorized keys
+                [[ "$SSH_PUBLIC_KEY" =~ ^ssh- ]] && add_line_if_missing "/root/.ssh/authorized_keys" "$SSH_PUBLIC_KEY" || echo "Invalid SSH key format. It must start with 'ssh-'."
+                read -p "Manually enter another public SSH Key? (y/N): " -n 1 -r && echo ""
+            else
+                break
             fi
         done
-    fi
 
-    # Ensure a Public SSH Key exists in your authorized_keys file
-    while true; do
+        # Count all existing public keys
         SSH_KEY_COUNT=$(grep -c "^ssh-" /root/.ssh/authorized_keys 2>/dev/null || echo 0)
         if [ "$SSH_KEY_COUNT" -gt 1 ]; then # Proxmox installs the first key automatically. Check that a 2nd, custom key exists.
-            echo "Public SSH Key Found in /root/.ssh/authorized_keys"
+            echo "$SSH_KEY_COUNT Public SSH key(s) found in /root/.ssh/authorized_keys (one was automaticaly installed by Proxmox)."
+
             # Disable Password Authentication via a dedicated config file
-            echo 'PasswordAuthentication no' > /etc/ssh/sshd_config.d/disable_pw.conf && { systemctl restart ssh || echo "Warning: Failed to restart ssh."; }
+            read -p "Now that we have your public SSH key(s) saved, do you want to disable password authentication? (Highly recommended) (Y/n): " -n 1 -r && echo ""
+            if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+                echo 'PasswordAuthentication no' > /etc/ssh/sshd_config.d/disable_pw.conf && { systemctl restart ssh || echo "Warning: Failed to restart ssh."; }
+            else
+                rm -f /etc/ssh/sshd_config.d/disable_pw.conf
+                echo "Re-enabled password authentication."
+            fi
             break
         else
-            echo "ERROR: Public SSH Key not found in /root/.ssh/authorized_keys"
-            read -p "Please enter your Public SSH Key (ssh-ed25519 ...). This can be generated in Bitwarden Desktop Client if you don't have one already: " USER_SSH_KEY && echo ""
-            # Ensure $USER_SSH_KEY starts with ssh- before adding to authorized keys
-            [[ "$USER_SSH_KEY" =~ ^ssh- ]] && add_line_if_missing "/root/.ssh/authorized_keys" "$USER_SSH_KEY" || echo "Invalid SSH key format. It must start with 'ssh-'."
+            echo "Oh no! No public SSH keys were saved or found in /root/.ssh/authorized_keys"
         fi
-        sleep 1
+        read -p "Do you want to try again? (y/N): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ ]] && continue || break
+    done
+fi
+
+if [ -f "/root/.ssh/id_ed25519" ]; then
+    echo "Private SSH key found in /root/.ssh/id_ed25519."
+    read -p "Replace it with a new private SSH key (ssh-ed25519)? (Y/n): " -n 1 -r && echo ""
+else 
+    read -p "Import your private SSH key (ssh-ed25519)? (Y/n): " -n 1 -r && echo ""
+fi
+if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    while true; do
+        # Attempt to import your SSH Keypair from Bitwarden Secrets Manager
+        SSH_PRIVATE_KEY=$(/root/.local/bin/bws secret list -t $(</etc/pve/priv/bws_access_token) --output json | jq -r '.[]|select(.key=="SSH_PRIVATE_KEY")|.value') || true
+        if [ -n "$SSH_PRIVATE_KEY" ]; then
+            echo "Found private SSH key in Bitwarden Secrets Manager." && echo "$SSH_PRIVATE_KEY" > /root/.ssh/id_ed25519 && chmod 600 /root/.ssh/id_ed25519
+        else
+            echo "No private SSH key found in Bitwarden Secrets Manager (using SSH_PRIVATE_KEY)."
+            echo "Please paste your private SSH Key below."
+            echo "When finished, press Enter on a new line, then press Ctrl+D:"
+            SSH_PRIVATE_KEY=$(cat)
+            echo ""
+            if [[ "$SSH_PRIVATE_KEY" == *"BEGIN OPENSSH PRIVATE KEY"* && "$SSH_PRIVATE_KEY" == *"END OPENSSH PRIVATE KEY"* ]]; then
+                echo "$SSH_PRIVATE_KEY" > /root/.ssh/id_ed25519 && chmod 600 /root/.ssh/id_ed25519
+                break
+            else
+                echo "Invalid private SSH key format."
+            fi
+        fi
+
+        if [ -f "/root/.ssh/id_ed25519" ]; then
+            echo "Private SSH key found in /root/.ssh/id_ed25519."
+            break
+        fi
+
+        read -p "Do you want to try again? (y/N): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ ]] && continue || break
     done
 fi
 

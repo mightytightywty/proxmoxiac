@@ -489,8 +489,15 @@ if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     # Create a backup of fstab
     cp "/etc/fstab" "/etc/fstab.bak.$(date +%F_%T)" && echo "Backup created at /etc/fstab.bak.$(date +%F_%T)"
 
-    # Use the latest version from "/root/infrastructure/config/$(hostname)-fstab"
-    [ -f "/root/infrastructure/config/$(hostname)-fstab" ] && cp "/root/infrastructure/config/$(hostname)-fstab" "/etc/fstab"
+    # If an fstab file exists in our IaC repo and it's newer than the system's fstab, offer to use it
+    IAC_FSTAB="/root/infrastructure/config/$(hostname)-fstab"
+    if [ -f "$IAC_FSTAB" ] && [ "$IAC_FSTAB" -nt "/etc/fstab" ]; then
+        read -p "Found a newer fstab in your infrastructure repo. Use it? (Y/n): " -n 1 -r && echo ""
+        if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+            cp "$IAC_FSTAB" "/etc/fstab"
+            echo "Updated /etc/fstab from your infrastructure repo."
+        fi
+    fi
 
     # add proxmoxiac sample lines if they're not already in the file
     if ! grep -q "proxmoxiac" /etc/fstab; then
@@ -513,7 +520,7 @@ EOF
         grep -q " fuse.mergerfs " /etc/fstab && apt install -y mergerfs             # Install mergerfs if used in fstab
         mapfile -t FSTAB_ENTRIES < <(grep -vE "^#|^$" /etc/fstab | awk '{print $2}' | grep -vE "^(none|swap|/|/proc)$") # Iterate through fstab, exclude comments, and special mountpoints. Return only normal mountpoints.
         for MOUNTPOINT in "${FSTAB_ENTRIES[@]}"; do
-            [ -n "$MOUNTPOINT" ] && mkdir -p "$MOUNTPOINT"                          # Ensure each of the mountpoint directories listed in FSTAB actually exist
+            [ -n "$MOUNTPOINT" ] && mkdir -p "$MOUNTPOINT" || true                  # Ensure each of the mountpoint directories listed in FSTAB actually exist
         done
         systemctl daemon-reload || true                                             # Sync systemd with the modified fstab
         if mount -a; then echo "Nice job, looks great!"; break; fi                  # Reload the new fstab entries - Automatically break the loop if mount is successful
@@ -521,7 +528,7 @@ EOF
     done
 
     # Update infrastructure-as-code copy of fstab
-    cp "/etc/fstab" "/root/infrastructure/config/$(hostname)-fstab" && echo "Backup created at /root/infrastructure/config/$(hostname)-fstab"
+    cp "/etc/fstab" "$IAC_FSTAB" && echo "Updated infrastructure-as-code fstab at $IAC_FSTAB"
 
     mount -a # (or just reboot)
     # df -h #verify the mount points

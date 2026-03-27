@@ -22,7 +22,7 @@ get_secrets() {
     [ "$network_up" -eq 0 ] && echo "ABORTING: Network connectivity not established." >&2 && return 1
     
     # Retrieve Bitwarden Secrets Manager Access Token
-    echo "Fetching secrets from Bitwarden..." >&2
+    echo "Fetching secrets from Bitwarden Secrets Manager" >&2
 
     # Try to fetch secrets
     while [ $count -lt $max_retries ]; do

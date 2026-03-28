@@ -25,6 +25,7 @@ Options to distiguish from Template LXC:
       --cores <integer> (1 - 8192)   CPU Cores (default: matches template)
       --memory <mb>                  Amount of RAM for the container in MB (default: matches template)
       --swap <mb>                    Swap in MB (default: matches template)
+      --map_host_tun <0|1>           Grants the container read and write permissions for the host TUN character device. Useful for VPNs, Tailscale, etc. (default: 0)
 EOF
 exit 1
 }
@@ -42,6 +43,7 @@ while [[ $# -gt 0 ]]; do
     --cores)        CTX_CORES="$2";        [[ -z "$CTX_CORES" ]]        && usage; shift 2 ;;
     --memory)       CTX_MEMORY="$2";       [[ -z "$CTX_MEMORY" ]]       && usage; shift 2 ;;
     --swap)         CTX_SWAP="$2";         [[ -z "$CTX_SWAP" ]]         && usage; shift 2 ;;
+    --map_host_tun) CTX_HOST_TUN="$2";     [[ -z "$CTX_HOST_TUN" ]]     && usage; shift 2 ;;
     --help|-h)      usage ;;
     *) echo "Unknown parameter: $1"; usage ;; # Handle unexpected flags
   esac
@@ -143,6 +145,18 @@ pct set $CLONE_CTX_ID --net0 "name=eth0,bridge=vmbr0,hwaddr=$CLONE_MAC,ip=dhcp,t
 [ -n "$CTX_CORES" ] && pct set $CLONE_CTX_ID --cores "$CTX_CORES"                                                # Set the number of CPU cores
 [ -n "$CTX_MEMORY" ] && pct set $CLONE_CTX_ID --memory "$CTX_MEMORY"                                             # Set the RAM in MB
 [ -n "$CTX_SWAP" ] && pct set $CLONE_CTX_ID --swap "$CTX_SWAP"                                                   # Set the Swap in MB
+if [[ "$CTX_HOST_TUN" == "0" || "$CTX_HOST_TUN" == "1" ]]; then                                                  # IF --map_host_tun is 0 or 1
+    sed -i '/lxc.cgroup2.devices.allow: c 10:200 rwm/d' "/etc/pve/lxc/$CLONE_CTX_ID.conf"                        # Prevent duplicates
+    sed -i '/lxc.mount.entry: \/dev\/net\/tun dev\/net\/tun none bind,create=file/d' "/etc/pve/lxc/$CLONE_CTX_ID.conf"
+    if [ "$CTX_HOST_TUN" == "1" ]; then                                                                          # Grants the container read and write permissions for the host TUN character device
+cat <<EOF >> "/etc/pve/lxc/$CLONE_CTX_ID.conf"                                                                   # Bind mounts the TUN device directly into the container filesystem
+lxc.cgroup2.devices.allow: c 10:200 rwm
+lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
+EOF
+    fi
+fi
+
+
 
 #######################################################
 # Start the clone and display info to the user

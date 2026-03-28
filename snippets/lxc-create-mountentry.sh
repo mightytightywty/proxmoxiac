@@ -27,6 +27,11 @@ Optional:
     --readonly <0|1>        Set the read-only flag (default: 0 [full-access])
                                 0=full-access, 1=read-only
     --optional <0|1>        Don't fail container startup if mount fails (default: 0)
+    --chown <user:group>    Recursively change hostpath ownership? (default: 100000:10000 [lxcuser:lxcgroup])
+                                -1=Don't change hostpath ownership
+                                User 100000 on host = 0 in the LXC
+    --chmod <mode>          Recursively change hostpath permissions? (default: 2775)
+                                -1=Don't change hostpath permissions
     --help, -h              Show this help message
 EOF
 exit 1
@@ -42,10 +47,15 @@ while [[ $# -gt 0 ]]; do
         --lxcpath)   LXC_PATH="$2";  [[ -z "$LXC_PATH" ]]  && usage; shift 2 ;;
         --readonly)  READONLY="$2";  [[ -z "$READONLY" ]]  && usage; shift 2 ;;
         --optional)  OPTIONAL="$2";  [[ -z "$OPTIONAL" ]]  && usage; shift 2 ;;
+        --chown)     CHOWN="$2";     [[ -z "$CHOWN" ]]     && usage; shift 2 ;;
+        --chmod)     CHMOD="$2";     [[ -z "$CHMOD" ]]     && usage; shift 2 ;;
         --help|-h)      usage ;;
         *) echo "Unknown parameter: $1"; usage ;; # Handle unexpected flags
     esac
 done
+
+: "${CHOWN:=100000:10000}"
+: "${CHMOD:=2775}"
 
 # If CTX_ID or HOST_PATH or LXC_PATH are missing, show the help
 [[ -z "$CTX_ID" || -z "$HOST_PATH" || -z "$LXC_PATH" ]] && usage
@@ -101,8 +111,13 @@ else
 fi
 
 # Set permissions on the host path
-chown -R 100000:10000 "$HOST_PATH" # LXC's root user sees the files as owned by root (because 100000 on host = 0 in container) and can write without permission errors
-chmod -R 2775 "$HOST_PATH"
+if [[ "$CHOWN" != "-1" ]]; then
+    chown -R "$CHOWN" "$HOST_PATH" # LXC's root user sees the files as owned by root (because 100000 on host = 0 in container) and can write without permission errors
+fi
+
+if [[ "$CHMOD" != "-1" ]]; then
+    chmod -R "$CHMOD" "$HOST_PATH"
+fi
 
 # Confirm completion
 echo "Successfully added $HOST_PATH to CT $CTX_ID at $LXC_PATH" 

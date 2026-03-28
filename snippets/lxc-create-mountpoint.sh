@@ -27,10 +27,10 @@ Optional:
                             0=full-access, 1=read-only
   --replicate <0|1>      Replication Enabled? (default: 1 [enabled])
   --chown <user:group>   Recursively change hostpath ownership? (default: 100000:10000 [lxcuser:lxcgroup])
-                            -1=Don't change hostpath ownership
                             User 100000 on host = 0 in the LXC
+  --no-chown             Don't change hostpath ownership
   --chmod <mode>         Recursively change hostpath permissions? (default: 2775)
-                            -1=Don't change hostpath permissions
+  --no-chmod             Don't change hostpath permissions
   --help, -h             Show this help message
 EOF
 exit 1
@@ -49,7 +49,9 @@ while [[ $# -gt 0 ]]; do
     --readonly)  READONLY="$2";  [[ -z "$READONLY" ]]  && usage; shift 2 ;;
     --replicate) REPLICATE="$2"; [[ -z "$REPLICATE" ]] && usage; shift 2 ;;
     --chown)     CHOWN="$2";     [[ -z "$CHOWN" ]]     && usage; shift 2 ;;
+    --no-chown)  SKIP_CHOWN=1;   shift 1 ;;
     --chmod)     CHMOD="$2";     [[ -z "$CHMOD" ]]     && usage; shift 2 ;;
+    --no-chmod)  SKIP_CHMOD=1;   shift 1 ;;
     --help|-h)      usage ;;
     *) echo "Unknown parameter: $1"; usage ;; # Handle unexpected flags
   esac
@@ -90,12 +92,12 @@ else
 fi
 
 # Set ownership on the host path
-if [[ "$CHOWN" != "-1" ]]; then
+if [[ -z "$SKIP_CHOWN" ]]; then
     chown -R "$CHOWN" "$HOST_PATH"
 fi
 
 # Set permissions on the host path
-if [[ "$CHMOD" != "-1" ]]; then
+if [[ -z "$SKIP_CHMOD" ]]; then
     chmod -R "$CHMOD" "$HOST_PATH"
 fi
 

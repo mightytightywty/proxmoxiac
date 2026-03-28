@@ -28,10 +28,10 @@ Optional:
                                 0=full-access, 1=read-only
     --optional <0|1>        Don't fail container startup if mount fails (default: 0)
     --chown <user:group>    Recursively change hostpath ownership? (default: 100000:10000 [lxcuser:lxcgroup])
-                                -1=Don't change hostpath ownership
                                 User 100000 on host = 0 in the LXC
+    --no-chown              Don't change hostpath ownership
     --chmod <mode>          Recursively change hostpath permissions? (default: 2775)
-                                -1=Don't change hostpath permissions
+    --no-chmod              Don't change hostpath permissions
     --help, -h              Show this help message
 EOF
 exit 1
@@ -48,7 +48,9 @@ while [[ $# -gt 0 ]]; do
         --readonly)  READONLY="$2";  [[ -z "$READONLY" ]]  && usage; shift 2 ;;
         --optional)  OPTIONAL="$2";  [[ -z "$OPTIONAL" ]]  && usage; shift 2 ;;
         --chown)     CHOWN="$2";     [[ -z "$CHOWN" ]]     && usage; shift 2 ;;
+        --no-chown)  SKIP_CHOWN=1;   shift 1 ;;
         --chmod)     CHMOD="$2";     [[ -z "$CHMOD" ]]     && usage; shift 2 ;;
+        --no-chmod)  SKIP_CHMOD=1;   shift 1 ;;
         --help|-h)      usage ;;
         *) echo "Unknown parameter: $1"; usage ;; # Handle unexpected flags
     esac
@@ -111,11 +113,11 @@ else
 fi
 
 # Set permissions on the host path
-if [[ "$CHOWN" != "-1" ]]; then
+if [[ -z "$SKIP_CHOWN" ]]; then
     chown -R "$CHOWN" "$HOST_PATH" # LXC's root user sees the files as owned by root (because 100000 on host = 0 in container) and can write without permission errors
 fi
 
-if [[ "$CHMOD" != "-1" ]]; then
+if [[ -z "$SKIP_CHMOD" ]]; then
     chmod -R "$CHMOD" "$HOST_PATH"
 fi
 

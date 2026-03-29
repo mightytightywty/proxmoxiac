@@ -26,11 +26,11 @@ Optional:
   --readonly <0|1>       Set the read-only flag (default: 0 [full-access])
                             0=full-access, 1=read-only
   --replicate <0|1>      Replication Enabled? (default: 1 [enabled])
-  --chown <user:group>   Recursively change hostpath ownership? (default: 100000:10000 [lxcuser:lxcgroup])
+  --chown <user:group>   Recursively change hostpath ownership? (default: "")
+                            Consider using 100000:10000 (lxcuser:lxcgroup)
                             User 100000 on host = 0 in the LXC
-  --no-chown             Don't change hostpath ownership
-  --chmod <mode>         Recursively change hostpath permissions? (default: 2775)
-  --no-chmod             Don't change hostpath permissions
+  --chmod <mode>         Recursively change hostpath permissions? (default: "")
+                            Consider using 2775
   --help, -h             Show this help message
 EOF
 exit 1
@@ -49,16 +49,11 @@ while [[ $# -gt 0 ]]; do
     --readonly)  READONLY="$2";  [[ -z "$READONLY" ]]  && usage; shift 2 ;;
     --replicate) REPLICATE="$2"; [[ -z "$REPLICATE" ]] && usage; shift 2 ;;
     --chown)     CHOWN="$2";     [[ -z "$CHOWN" ]]     && usage; shift 2 ;;
-    --no-chown)  SKIP_CHOWN=1;   shift 1 ;;
     --chmod)     CHMOD="$2";     [[ -z "$CHMOD" ]]     && usage; shift 2 ;;
-    --no-chmod)  SKIP_CHMOD=1;   shift 1 ;;
     --help|-h)      usage ;;
     *) echo "Unknown parameter: $1"; usage ;; # Handle unexpected flags
   esac
 done
-
-: "${CHOWN:=100000:10000}"
-: "${CHMOD:=2775}"
 
 # If CTX_ID or HOST_PATH or LXC_PATH are missing, show the help
 [[ -z "$CTX_ID" || -z "$HOST_PATH" || -z "$LXC_PATH" ]] && usage
@@ -92,12 +87,14 @@ else
 fi
 
 # Set ownership on the host path
-if [[ -z "$SKIP_CHOWN" ]]; then
+if [[ -n "$CHOWN" ]]; then
+    echo "Updating ownership of $HOST_PATH to $CHOWN..."
     chown -R "$CHOWN" "$HOST_PATH"
 fi
 
 # Set permissions on the host path
-if [[ -z "$SKIP_CHMOD" ]]; then
+if [[ -n "$CHMOD" ]]; then
+    echo "Updating permissions of $HOST_PATH to $CHMOD..."
     chmod -R "$CHMOD" "$HOST_PATH"
 fi
 

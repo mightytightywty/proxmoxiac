@@ -32,8 +32,8 @@ apt install -y curl wget jq # Ensure dependencies are installed
 for PLUGIN in cockpit-file-sharing cockpit-navigator cockpit-identities; do
     echo "Fetching latest release of $PLUGIN..."
     
-    # Get the latest release URL for the .deb package (using || true to prevent set -e from exiting if parsing fails)
-    DEB_URL=$(curl -s "https://api.github.com/repos/45Drives/$PLUGIN/releases/latest" | jq -r '.assets[]? | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1 || true)
+    # Get the most recent release URL that actually contains a .deb package
+    DEB_URL=$(curl -s "https://api.github.com/repos/45Drives/$PLUGIN/releases" | jq -r '.[].assets[]? | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1 || true)
     
     if [ -n "$DEB_URL" ]; then
         echo "Downloading $DEB_URL..."

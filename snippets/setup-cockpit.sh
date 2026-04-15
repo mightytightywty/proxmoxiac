@@ -21,16 +21,32 @@ if [ -f "/etc/cockpit/disallowed-users" ]; then
     sed -i '/^root$/d' "/etc/cockpit/disallowed-users"
 fi
 
-# Install 45Drives Cockpit plugins:
+#Download and install the LATEST VERSION of each of these Cockpit plugins:
 # https://github.com/45Drives/cockpit-file-sharing
 # https://github.com/45Drives/cockpit-navigator
 # https://github.com/45Drives/cockpit-identities
-apt install -y curl gnupg
-curl -sSL https://repo.45drives.com/setup | bash
-apt-get update
-apt install cockpit-file-sharing cockpit-navigator cockpit-identities -y
+
+apt install -y curl wget jq # Ensure dependencies are installed
+
+
+for PLUGIN in cockpit-file-sharing cockpit-navigator cockpit-identities; do
+    echo "Fetching latest release of $PLUGIN..."
+    
+    # Get the latest release URL for the .deb package (using || true to prevent set -e from exiting if parsing fails)
+    DEB_URL=$(curl -s "https://api.github.com/repos/45Drives/$PLUGIN/releases/latest" | jq -r '.assets[]? | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1 || true)
+    
+    if [ -n "$DEB_URL" ]; then
+        echo "Downloading $DEB_URL..."
+        wget -qO "/tmp/${PLUGIN}.deb" "$DEB_URL"
+        echo "Installing $PLUGIN..."
+        apt install -y "/tmp/${PLUGIN}.deb"
+        rm -f "/tmp/${PLUGIN}.deb"
+    else
+        echo "Error: Could not find .deb package for $PLUGIN in the latest release."
+    fi
+done
 
 systemctl enable --now cockpit.socket # Enable the web service on boot
 
-echo "Success!"
-echo "Open Cockpit at https://<YOUR-IP>:9090"
+
+# Now open https://<YOUR-IP>:9090

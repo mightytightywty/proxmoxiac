@@ -27,8 +27,8 @@ fi
 # https://github.com/45Drives/cockpit-identities
 apt install -y curl
 curl -sSL https://repo.45drives.com/setup | sudo bash
-sudo apt-get update
-sudo apt install cockpit-file-sharing cockpit-navigator cockpit-identities -y
+apt-get update
+apt install cockpit-file-sharing cockpit-navigator cockpit-identities -y
 
 systemctl enable --now cockpit.socket # Enable the web service on boot
 

@@ -26,7 +26,7 @@ fi
 # https://github.com/45Drives/cockpit-navigator
 # https://github.com/45Drives/cockpit-identities
 apt install -y curl
-curl -sSL https://repo.45drives.com/setup | sudo bash
+curl -sSL https://repo.45drives.com/setup | bash
 apt-get update
 apt install cockpit-file-sharing cockpit-navigator cockpit-identities -y
 

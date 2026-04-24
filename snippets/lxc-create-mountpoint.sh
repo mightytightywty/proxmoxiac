@@ -117,11 +117,6 @@ MP_OPTS="$HOST_PATH,mp=$LXC_PATH,backup=$BACKUP"                                
 pct set "$CTX_ID" --mp"$MP_ID" "$MP_OPTS"                                                       # Apply mountpoint
 echo "Successfully added $HOST_PATH to CT $CTX_ID at $LXC_PATH as mp$MP_ID with backup=$BACKUP" # Confirm completion
 
-# Warn if the container is running, as mountpoints usually require a reboot to attach
-if pct status "$CTX_ID" 2>/dev/null | grep -q "running"; then
-    echo "WARNING: Container $CTX_ID is currently running. You must REBOOT it for the new mountpoint to be visible."
-fi
-
 #######################################################
 # Show Usage Instructions
 #######################################################

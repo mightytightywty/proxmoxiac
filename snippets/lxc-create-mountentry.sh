@@ -119,12 +119,7 @@ if [[ -n "$CHOWN" ]]; then
 fi
 
 # Confirm completion
-echo "Successfully added $HOST_PATH to CT $CTX_ID at $LXC_PATH" 
-
-# Warn if the container is running, as mountpoints usually require a reboot to attach
-if pct status "$CTX_ID" 2>/dev/null | grep -q "running"; then
-    echo "WARNING: Container $CTX_ID is currently running. You must REBOOT it for the new mountpoint to be visible."
-fi
+echo "Successfully added $HOST_PATH to CT $CTX_ID at $LXC_PATH"
 
 #######################################################
 # Show Usage Instructions

@@ -52,7 +52,7 @@ if [[ "${TAILSCALE_ARGS[*]}" == *"--advertise-routes"* ]]; then
     # See https://tailscale.com/docs/features/subnet-routers
     echo "Enabling IP Forwarding for Tailscale Subnet Router..."
     CONF_FILE="/etc/sysctl.d/99-tailscale.conf"
-    [ ! -f "$CONF_FILE" ] && CONF_FILE="/etc/sysctl.conf"
+    [ ! -d "/etc/sysctl.d" ] && CONF_FILE="/etc/sysctl.conf"
     add_line_if_missing "$CONF_FILE" 'net.ipv4.ip_forward = 1'
     add_line_if_missing "$CONF_FILE" 'net.ipv6.conf.all.forwarding = 1'
 

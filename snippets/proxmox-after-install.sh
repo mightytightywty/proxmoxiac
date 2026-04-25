@@ -632,6 +632,11 @@ if ! command -v htop &> /dev/null && read -p "Install htop for monitoring system
     apt update && apt install -y htop
 fi
 
+# Setup nfs-server, unless it's already installed
+if ! command -v exportfs &> /dev/null && read -p "Install nfs-server to enable NFS fileshares? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
+    apt update && apt install -y nfs-kernel-server && systemctl enable --now nfs-server # Install and start the service
+fi
+
 # Setup Sanoid and Syncoid, unless it's already installed
 if ! command -v sanoid &> /dev/null && read -p "Install Sanoid and Syncoid to manage ZFS snapshots? (Y/n): " -n 1 -r && echo "" && [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     apt update && apt install -y sanoid && mkdir -p /etc/sanoid

@@ -128,7 +128,7 @@ echo "==========================================================================
 echo "If you don't already have one, generate a new SSH keypair with Bitwarden Desktop Client or your software of choice. Don't forget to save it!"
 echo ""
 echo "This script can optionally pull your public SSH keys from 3 places. Add as many as you like!"
-echo "1. Bitwarden Secrets Manager (using the names: SSH_PUBLI_KEY and SSH_PRIVATE_KEY)."
+echo "1. Bitwarden Secrets Manager (using the names: SSH_PUBLIC_KEY and SSH_PRIVATE_KEY)."
 echo "2. Github - see https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account"
 echo "3. Manually pasted into this script."
 echo ""

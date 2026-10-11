@@ -26,7 +26,7 @@ get_secrets() {
 
     # Try to fetch secrets
     while [ $count -lt $max_retries ]; do
-        result=$(/root/.local/bin/bws secret list --access-token "$BWS_ACCESS_TOKEN" --output json 2>&1)
+        result=$(bws secret list --access-token "$BWS_ACCESS_TOKEN" --output json 2>&1)
         [ $? -eq 0 ] && { success=1; break; } || { echo "WARN: BWS connection failed (Attempt $((count+1))/$max_retries). Retrying in 5s..." >&2; sleep 5; ((count++)); }
     done
 

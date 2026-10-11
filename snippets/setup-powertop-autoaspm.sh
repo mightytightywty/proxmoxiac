@@ -14,7 +14,7 @@ cat <<EOF
 EOF
 
 # Define Install Directory
-INSTALL_DIR="/root/.local/bin"
+INSTALL_DIR="/usr/local/bin"
 mkdir -p "$INSTALL_DIR"
 
 # Update & Install pciutils and powertop

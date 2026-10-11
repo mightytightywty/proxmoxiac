@@ -101,13 +101,13 @@ CONFIG_FILE="/root/infrastructure/config/$(hostname)-host-config.sh"            
 add_line_if_missing $CONFIG_FILE "#!/bin/bash"                                # If Host Config File doesn't exist, create it, and add a shebang
 add_line_if_missing $CONFIG_FILE "GITHUB_USERNAME=\"$GITHUB_USERNAME\""       # Save GITHUB_USERNAME to config file
 
-# Setup Bitwarden Secrets Manager CLI via official install method - installs to /root/.local/bin/bws
+# Setup Bitwarden Secrets Manager CLI via official install method - installs to /usr/local/bin/bws
 curl -Ls https://bws.bitwarden.com/install | sh
 
 # Ensure Bitwarden Secrets Manager Machine Account Token exists and is valid
 while true; do
     BWS_ACCESS_TOKEN=$(cat "/etc/pve/priv/bws_access_token" 2>/dev/null || true)
-    if /root/.local/bin/bws secret list --access-token "$BWS_ACCESS_TOKEN" --output json >/dev/null 2>&1; then
+    if bws secret list --access-token "$BWS_ACCESS_TOKEN" --output json >/dev/null 2>&1; then
         echo "Bitwarden Secrets Manager authentication successful."
         break
     else
@@ -136,7 +136,7 @@ read -p "Import/add public SSH Keys? (Highly recommended) (Y/n): " -n 1 -r && ec
 if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     while true; do
         # Attempt to import SSH_PUBLIC_KEY from Bitwarden Secrets Manager
-        SSH_PUBLIC_KEY=$(/root/.local/bin/bws secret list -t $(</etc/pve/priv/bws_access_token) --output json | jq -r '.[]|select(.key=="SSH_PUBLIC_KEY")|.value') || true
+        SSH_PUBLIC_KEY=$(bws secret list -t $(</etc/pve/priv/bws_access_token) --output json | jq -r '.[]|select(.key=="SSH_PUBLIC_KEY")|.value') || true
         [ -n "$SSH_PUBLIC_KEY" ] && echo "Found public SSH key in Bitwarden Secrets Manager: $SSH_PUBLIC_KEY" && add_line_if_missing "/root/.ssh/authorized_keys" "$SSH_PUBLIC_KEY"
 
         # Check for Public SSH Keys at https://github.com/$GITHUB_USERNAME.keys
@@ -199,7 +199,7 @@ fi
 if [[ $REPLY =~ ^[Yy]$ || -z $REPLY ]]; then
     while true; do
         # Attempt to import your SSH Keypair from Bitwarden Secrets Manager
-        SSH_PRIVATE_KEY=$(/root/.local/bin/bws secret list -t $(</etc/pve/priv/bws_access_token) --output json | jq -r '.[]|select(.key=="SSH_PRIVATE_KEY")|.value') || true
+        SSH_PRIVATE_KEY=$(bws secret list -t $(</etc/pve/priv/bws_access_token) --output json | jq -r '.[]|select(.key=="SSH_PRIVATE_KEY")|.value') || true
         if [ -n "$SSH_PRIVATE_KEY" ]; then
             echo "Found private SSH key in Bitwarden Secrets Manager." && echo "$SSH_PRIVATE_KEY" > /root/.ssh/id_ed25519 && chmod 600 /root/.ssh/id_ed25519
         else
